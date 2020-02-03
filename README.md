@@ -2,7 +2,7 @@
 Secure File Transfer Protocol
 
 Hermod is research project and should be treated as such.
-We take no responsibility for ans security flaws or lost data due to using Hermod.
+We take no responsibility for any security flaws or lany lost data due to using Hermod.
 
 ## Build
 
