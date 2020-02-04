@@ -1,3 +1,5 @@
+pub mod noise;
+pub mod peer;
 #[cfg(test)]
 mod tests {
     #[test]
