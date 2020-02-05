@@ -1,5 +1,6 @@
 use snow::{self, Builder};
 
+use crate::config::Config;
 use crate::peer::Peer;
 
 static NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
@@ -15,39 +16,7 @@ pub enum NoiseRole {
 }
 
 pub struct NoiseSession {
-    peer: Peer,
     noise: NoiseMode,
-}
-
-impl NoiseSession {
-    pub fn new(peer: Peer, static_key: &[u8], role: NoiseRole) -> Result<Self, snow::error::Error> {
-        let builder: Builder<'_> = Builder::new(NOISE_PATTERN.clone().parse()?)
-            .local_private_key(&static_key)
-            .remote_public_key(peer.get_public_key())
-            .prologue(peer.get_id().as_bytes());
-
-        let state = match role {
-            NoiseRole::Initiator => NoiseMode::Handshake(builder.build_initiator()?),
-            NoiseRole::Responder => NoiseMode::Handshake(builder.build_responder()?),
-        };
-
-        Ok(NoiseSession { peer, noise: state })
-    }
-    pub fn read_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        self.noise.read_message(message, payload)
-    }
-
-    pub fn write_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        self.noise.write_message(message, payload)
-    }
 }
 
 impl NoiseMode {
@@ -86,5 +55,39 @@ impl NoiseMode {
                 ))
             }
         }
+    }
+}
+impl NoiseSession {
+    pub fn new(
+        peer: &Peer,
+        config: &impl Config,
+        role: NoiseRole,
+    ) -> Result<Self, snow::error::Error> {
+        let builder: Builder<'_> = Builder::new(NOISE_PATTERN.clone().parse()?)
+            .local_private_key(config.get_private_key())
+            .remote_public_key(peer.get_public_key())
+            .prologue(peer.get_id().as_bytes());
+
+        let state = match role {
+            NoiseRole::Initiator => NoiseMode::Handshake(builder.build_initiator()?),
+            NoiseRole::Responder => NoiseMode::Handshake(builder.build_responder()?),
+        };
+
+        Ok(NoiseSession { peer, noise: state })
+    }
+    pub fn read_message(
+        &mut self,
+        message: &[u8],
+        payload: &mut [u8],
+    ) -> Result<usize, snow::error::Error> {
+        self.noise.read_message(message, payload)
+    }
+
+    pub fn write_message(
+        &mut self,
+        message: &[u8],
+        payload: &mut [u8],
+    ) -> Result<usize, snow::error::Error> {
+        self.noise.write_message(message, payload)
     }
 }
