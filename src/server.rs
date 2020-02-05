@@ -1,55 +1,58 @@
-pub struct ServerConfig {
-    ip: String,
-    port: u16,
-}
+use crate::config::ServerConfig;
+use crate::message::parse_message_type;
+use crate::message::MessageType;
+use crate::noise::NoiseSession;
+use crate::peer::Peer;
 
-impl ServerConfig {
-    pub fn new(ip: &str, port: u16) -> Self {
-        ServerConfig {
-            ip: ip.into(),
-            port,
-        }
-    }
-}
+use async_std::io;
+use async_std::net::{TcpListener, TcpStream};
+use async_std::prelude::*;
+use async_std::task;
 
 pub struct Server {
-    running: bool,
     config: ServerConfig,
 }
 
 impl Server {
     pub fn new(config: ServerConfig) {
-        Server {
-            running: false,
-            config,
-        }
+        Server { config }
     }
 
-    pub fn is_running(&self) -> bool {
-        self.running
-    }
+    pub fn run_server(&self) {
+        task::block_on(async {
+            let listener = TcpListener::bind("127.0.0.1:8080").await?;
+            println!("Listening on {}", listener.local_addr()?);
 
-    pub fn run_server(&mut self) {
-        let (mut stream, _) = TcpListener::bind(self.config.get_ip())?.accept()?;
+            let mut incoming = listener.incoming();
 
-        self.running = true;
-
-        while let Some(tcp_conn) = stream.next() {
-            let mut buffer = Vec![u8, HERMOD_HS_INIT_LEN];
-            stream.read_exact(&mut buffer).unrwap();
-            // log incomming packet from ip
-            // try convert packet to HERMOD_MSG
-            // check if received msg is HERMOD_HS_INIT
-            // spawn new task or send Err
-        }
-
-        self.running = false;
+            while let Some(stream) = incoming.next().await {
+                let stream = stream?;
+                task::spawn(async {
+                    process(stream).await.unwrap();
+                });
+            }
+            Ok(())
+        });
     }
 }
 
-async fn new_noise_session() {
-    // Read client id,
-    // lookup up client id in client db
-    // init noise sesison with pub key of client
-    //
+async fn process(stream: TcpStream) -> io::Result<()> {
+    // log incomming packet from ip
+    // try convert packet to HERMOD_MSG
+    let mut buffer = Vec::new();
+    let message = message::Init::new(&buffer)?;
+
+    let peer = Peer::new(&stream, &message, NoiseRole::Responder).unwrap();
+    let noise_session = NoiseSession::new(peer, serverConfig, NoiseRole::Responder)?;
+
+    while let Some(packet) = peer.next().await {
+        let message_type = parse_message_type(buffer[0])?;
+        match message_type {
+            MessageType::Request => unimplemented!(),
+            MessageType::Payload => unimplemented!(),
+            MessageType::Error => unimplemented!(),
+            _ => unimplemented!(),
+        }
+    }
+    Ok(())
 }
