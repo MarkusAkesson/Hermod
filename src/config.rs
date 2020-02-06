@@ -65,3 +65,9 @@ impl ServerConfig {
         }
     }
 }
+
+impl ClientConfig {
+    pub fn new() -> Self {
+        unimplemented!();
+    }
+}

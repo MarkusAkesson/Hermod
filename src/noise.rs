@@ -57,6 +57,7 @@ impl NoiseMode {
         }
     }
 }
+
 impl NoiseSession {
     pub fn new(
         peer: &Peer,
@@ -73,7 +74,7 @@ impl NoiseSession {
             NoiseRole::Responder => NoiseMode::Handshake(builder.build_responder()?),
         };
 
-        Ok(NoiseSession { peer, noise: state })
+        Ok(NoiseSession { noise: state })
     }
     pub fn read_message(
         &mut self,

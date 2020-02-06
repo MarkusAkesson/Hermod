@@ -1,54 +1,101 @@
-use crate::message::Init;
+use crate::client::{Client, KNOWN_CLIENTS};
+use crate::hermod::{CLIENT_CONFIG, SERVER_CONFIG};
+use crate::message::Message;
 use crate::noise::NoiseRole;
 use crate::noise::NoiseSession;
 
-use std::collections::HashMap;
 use std::error::Error;
+use std::pin::Pin;
 
 use async_std::net::TcpStream;
-use lazy_static::lazy_static;
+use async_std::prelude::*;
+use async_std::stream::Stream;
+use async_std::task::{Context, Poll};
 
-lazy_static! {
-    pub static ref KNOWN_CLIENTS: HashMap<String, ClientEntry> = load_known_clients();
+pub enum Peer {
+    Client(ClientPeer),
+    Server(ServerPeer),
 }
 
-struct ClientEntry {
-    id_token: String,
-    public_key: Vec<u8>,
+pub struct ClientPeer {
+    pub id_token: String,
+    pub public_key: Vec<u8>,
 }
 
-struct ServerEntry {
-    ip: String,
-    id_token: String,
-    public_key: Vec<u8>,
-    private_key: Vec<u8>,
+pub struct ServerPeer {
+    pub hostname: String,
+    pub public_key: Vec<u8>,
 }
 
-pub struct Peer {
-    id: String,
+impl Peer {
+    pub fn new_server_peer(hostname: &str) -> Self {
+        unimplemented!()
+    }
+
+    pub fn new_client_peer(id_token: &str) -> Self {
+        let client = KNOWN_CLIENTS.get(id_token).unwrap();
+
+        Peer::Client(ClientPeer {
+            id_token: client.id_token,
+            public_key: client.client_key,
+        })
+    }
+
+    pub fn get_id(&self) -> &str {
+        match self {
+            Peer::Client(client) => &client.id_token,
+            Peer::Server(server) => &server.hostname,
+        }
+    }
+
+    pub fn get_public_key(&self) -> &[u8] {
+        match self {
+            Peer::Client(client) => &client.public_key,
+            Peer::Server(server) => &server.public_key,
+        }
+    }
+}
+
+impl Stream for Peer {
+    type Item = u8;
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        unimplemented!();
+    }
+}
+
+pub struct Endpoint {
+    peer: Peer,
     stream: TcpStream,
     session: NoiseSession,
 }
 
-impl Peer {
-    pub fn from_id_token(stream: TcpStream, msg: Init) -> Result<Self, Box<dyn Error>> {
-        let client = KNOWN_CLIENTS.get(msg.id)?;
-        let session = NoiseSession::new(client, SERVER_CONFIG, NoiseRole::Responder);
+impl Endpoint {
+    pub fn client(stream: TcpStream, peer: Peer) -> Self {
+        let session = NoiseSession::new(&peer, &CLIENT_CONFIG, NoiseRole::Initiator).unwrap();
 
-        Peer {
-            id: client.id,
+        Endpoint {
+            peer,
             stream,
             session,
         }
     }
 
-    pub fn get_id(&self) -> &str {
-        &self.id
+    pub fn server(stream: TcpStream, peer: Peer) -> Self {
+        let session = NoiseSession::new(&peer, &SERVER_CONFIG, NoiseRole::Responder).unwrap();
+
+        Endpoint {
+            peer,
+            stream,
+            session,
+        }
     }
 
-    pub fn get_public_key(&self) -> &[u8] {
-        &self.public_key
+    pub async fn send(&self, message: &Message) {
+        let len = message.len();
+        let mut payload = Vec::with_capacity(len);
+        self.session
+            .write_message(message.as_bytes(), &mut payload)
+            .unwrap();
+        self.stream.write_all(&payload).await.unwrap();
     }
-
-    pub fn send(mesage: &message) {}
 }
