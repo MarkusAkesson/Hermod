@@ -49,4 +49,6 @@ impl Peer {
     pub fn get_public_key(&self) -> &[u8] {
         &self.public_key
     }
+
+    pub fn send(mesage: &message) {}
 }
