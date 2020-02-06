@@ -1,7 +1,7 @@
-use snow::{self, Builder};
-
 use crate::config::Config;
 use crate::peer::Peer;
+
+use snow::{self, Builder};
 
 static NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
 

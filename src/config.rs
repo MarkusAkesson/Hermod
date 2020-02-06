@@ -5,6 +5,13 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref SERVER_CONFIG: ServerConfig = ServerConfig::new();
+    pub static ref CLIENT_CONFIG: ClientConfig = ClientConfig::new();
+}
+
 pub trait Config {
     fn get_private_key(&self) -> &[u8];
     fn get_public_key(&self) -> &[u8];

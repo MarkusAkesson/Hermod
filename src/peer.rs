@@ -1,5 +1,5 @@
 use crate::client::{Client, KNOWN_CLIENTS};
-use crate::hermod::{CLIENT_CONFIG, SERVER_CONFIG};
+use crate::config::{CLIENT_CONFIG, SERVER_CONFIG};
 use crate::message::Message;
 use crate::noise::NoiseRole;
 use crate::noise::NoiseSession;

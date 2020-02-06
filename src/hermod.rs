@@ -3,17 +3,10 @@ use crate::message::Message;
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 
-use lazy_static::lazy_static;
-
 use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::task;
-
-lazy_static! {
-    pub static ref SERVER_CONFIG: ServerConfig = ServerConfig::new();
-    pub static ref CLIENT_CONFIG: ClientConfig = ClientConfig::new();
-}
 
 pub struct HermodServer {
     config: ServerConfig,
