@@ -30,7 +30,7 @@ impl Client {
         let clients = HashMap::new();
 
         for line in lines {
-            let line_content: Vec<String> = line
+            let line_content: Vec<&str> = line
                 .expect("Error reading authorized_clients file content")
                 .split(":")
                 .collect();
@@ -39,9 +39,9 @@ impl Client {
             let client_key = Vec::from(line_content[1]);
 
             clients.insert(
-                id_token,
+                id_token.to_string(),
                 Client {
-                    id_token,
+                    id_token: id_token.to_string(),
                     client_key,
                 },
             );
