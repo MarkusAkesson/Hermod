@@ -1,94 +1,110 @@
 use crate::config::Config;
+use crate::consts::*;
+use crate::message::Message;
 use crate::peer::Peer;
 
-use snow::{self, Builder};
+use snow::{self, Builder, HandshakeState, TransportState};
+
+use async_std::net::TcpStream;
+use async_std::prelude::*;
 
 static NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
-
-pub enum NoiseMode {
-    Handshake(snow::HandshakeState),
-    Transport(snow::TransportState),
-}
 
 pub enum NoiseRole {
     Initiator,
     Responder,
 }
 
-pub struct NoiseSession {
-    noise: NoiseMode,
+pub enum NoiseMode {
+    Handshake(snow::HandshakeState),
+    Transport(snow::TransportState),
 }
 
-impl NoiseMode {
-    pub fn read_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        let len = match self {
-            NoiseMode::Handshake(session) => session.read_message(message, payload)?,
-            NoiseMode::Transport(session) => session.read_message(message, payload)?,
-        };
-
-        Ok(len)
-    }
-
-    pub fn write_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        let len = match self {
-            NoiseMode::Handshake(session) => session.write_message(message, payload)?,
-            NoiseMode::Transport(session) => session.write_message(message, payload)?,
-        };
-
-        Ok(len)
-    }
-
-    pub fn into_transport_mode(self) -> Result<snow::TransportState, snow::error::Error> {
-        match self {
-            NoiseMode::Handshake(session) => session.into_transport_mode(),
-            NoiseMode::Transport(_) => {
-                return Err(snow::Error::State(
-                    snow::error::StateProblem::HandshakeAlreadyFinished,
-                ))
-            }
-        }
-    }
+pub struct NoiseStream {
+    stream: TcpStream,
+    noise: TransportState,
 }
 
-impl NoiseSession {
-    pub fn new<C: Config>(
+impl NoiseStream {
+    pub async fn new_initiator<C: Config>(
+        peer: &Peer,
+        config: &C,
+        stream: &mut TcpStream,
+    ) -> Result<Self, snow::error::Error> {
+        let mut noise = NoiseStream::create(peer, config, NoiseRole::Initiator)?;
+
+        client_handshake(stream, &mut noise).await?;
+
+        let noise = noise.into_transport_mode()?;
+
+        Ok(NoiseStream {
+            stream: stream.to_owned(),
+            noise,
+        })
+    }
+
+    pub async fn new_responder<C: Config>(
+        peer: &Peer,
+        config: &C,
+        stream: &mut TcpStream,
+        message: &Message,
+    ) -> Result<Self, snow::error::Error> {
+        let mut noise = NoiseStream::create(peer, config, NoiseRole::Responder)?;
+
+        server_handshake(stream, &mut noise, message).await?;
+
+        let noise = noise.into_transport_mode()?;
+
+        Ok(NoiseStream {
+            stream: stream.to_owned(),
+            noise,
+        })
+    }
+
+    pub fn create<C: Config>(
         peer: &Peer,
         config: &C,
         role: NoiseRole,
-    ) -> Result<Self, snow::error::Error> {
+    ) -> Result<HandshakeState, snow::error::Error> {
         let builder: Builder<'_> = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
             .prologue(peer.get_id().as_bytes());
 
-        let state = match role {
-            NoiseRole::Initiator => NoiseMode::Handshake(builder.build_initiator()?),
-            NoiseRole::Responder => NoiseMode::Handshake(builder.build_responder()?),
-        };
+        match role {
+            NoiseRole::Initiator => builder.build_initiator(),
+            NoiseRole::Responder => builder.build_responder(),
+        }
+    }
+}
 
-        Ok(NoiseSession { noise: state })
-    }
-    pub fn read_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        self.noise.read_message(message, payload)
-    }
+async fn client_handshake(
+    stream: &mut TcpStream,
+    hs: &mut HandshakeState,
+) -> Result<(), snow::error::Error> {
+    let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
+    let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
 
-    pub fn write_message(
-        &mut self,
-        message: &[u8],
-        payload: &mut [u8],
-    ) -> Result<usize, snow::error::Error> {
-        self.noise.write_message(message, payload)
-    }
+    let msg_len = hs.write_message(&[], &mut init_buffer)?;
+    stream.write_all(&init_buffer).await.unwrap();
+
+    let mut read_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
+    stream.read_exact(&mut read_buffer).await.unwrap();
+    hs.read_message(&read_buffer, &mut resp_buffer)?;
+    Ok(())
+}
+
+async fn server_handshake(
+    stream: &mut TcpStream,
+    hs: &mut HandshakeState,
+    msg: &Message,
+) -> Result<(), snow::error::Error> {
+    let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
+    let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
+
+    hs.read_message(&msg.get_payload(), &mut init_buffer)?;
+
+    let msg_len = hs.write_message(&[], &mut resp_buffer)?;
+    stream.write_all(&init_buffer).await.unwrap();
+    Ok(())
 }
