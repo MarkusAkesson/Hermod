@@ -3,6 +3,7 @@ use crate::config::{CLIENT_CONFIG, SERVER_CONFIG};
 use crate::message::Message;
 use crate::noise::NoiseRole;
 use crate::noise::NoiseSession;
+use crate::server::Server;
 
 use std::error::Error;
 use std::pin::Pin;
@@ -13,18 +14,8 @@ use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 
 pub enum Peer {
-    Client(ClientPeer),
-    Server(ServerPeer),
-}
-
-pub struct ClientPeer {
-    pub id_token: String,
-    pub public_key: Vec<u8>,
-}
-
-pub struct ServerPeer {
-    pub hostname: String,
-    pub public_key: Vec<u8>,
+    Client(Client),
+    Server(Server),
 }
 
 impl Peer {
@@ -35,9 +26,9 @@ impl Peer {
     pub fn new_client_peer(id_token: &str) -> Self {
         let client = KNOWN_CLIENTS.get(id_token).unwrap();
 
-        Peer::Client(ClientPeer {
-            id_token: client.id_token,
-            public_key: client.client_key,
+        Peer::Client(Client {
+            id_token: client.get_id().to_owned(),
+            client_key: client.get_public_key().to_vec(),
         })
     }
 
@@ -50,13 +41,13 @@ impl Peer {
 
     pub fn get_public_key(&self) -> &[u8] {
         match self {
-            Peer::Client(client) => &client.public_key,
+            Peer::Client(client) => &client.client_key,
             Peer::Server(server) => &server.public_key,
         }
     }
 }
 
-impl Stream for Peer {
+impl Stream for Endpoint {
     type Item = u8;
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         unimplemented!();
@@ -71,7 +62,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     pub fn client(stream: TcpStream, peer: Peer) -> Self {
-        let session = NoiseSession::new(&peer, &CLIENT_CONFIG, NoiseRole::Initiator).unwrap();
+        let session = NoiseSession::new(&peer, &*CLIENT_CONFIG, NoiseRole::Initiator).unwrap();
 
         Endpoint {
             peer,
@@ -81,7 +72,7 @@ impl Endpoint {
     }
 
     pub fn server(stream: TcpStream, peer: Peer) -> Self {
-        let session = NoiseSession::new(&peer, &SERVER_CONFIG, NoiseRole::Responder).unwrap();
+        let session = NoiseSession::new(&peer, &*SERVER_CONFIG, NoiseRole::Responder).unwrap();
 
         Endpoint {
             peer,
@@ -90,7 +81,7 @@ impl Endpoint {
         }
     }
 
-    pub async fn send(&self, message: &Message) {
+    pub async fn send(&mut self, message: &Message) {
         let len = message.len();
         let mut payload = Vec::with_capacity(len);
         self.session

@@ -59,9 +59,9 @@ impl NoiseMode {
 }
 
 impl NoiseSession {
-    pub fn new(
+    pub fn new<C: Config>(
         peer: &Peer,
-        config: &impl Config,
+        config: &C,
         role: NoiseRole,
     ) -> Result<Self, snow::error::Error> {
         let builder: Builder<'_> = Builder::new(NOISE_PATTERN.clone().parse()?)

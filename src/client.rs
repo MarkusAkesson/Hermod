@@ -23,17 +23,23 @@ impl Client {
         }
     }
 
+    pub fn get_public_key(&self) -> &[u8] {
+        &self.client_key
+    }
+
+    pub fn get_id(&self) -> &str {
+        &self.id_token
+    }
+
     pub fn load_clients(path: &Path) -> HashMap<String, Client> {
         let file = File::open(path).expect("Failed to open authorized_clients file");
         let lines = BufReader::new(file).lines();
 
-        let clients = HashMap::new();
+        let mut clients = HashMap::new();
 
         for line in lines {
-            let line_content: Vec<&str> = line
-                .expect("Error reading authorized_clients file content")
-                .split(":")
-                .collect();
+            let line = line.expect("Error reading authorized_clients file content");
+            let line_content: Vec<&str> = line.split(":").collect();
 
             let id_token = line_content[0];
             let client_key = Vec::from(line_content[1]);

@@ -45,12 +45,12 @@ async fn handle_connection(stream: TcpStream) -> io::Result<()> {
         _ => unimplemented!(), // Received unexpected message, close connection
     };
 
-    let endpoint = Endpoint::server(stream, peer);
+    let mut endpoint = Endpoint::server(stream, peer);
 
-    while let Some(packet) = peer.next().await {
+    while let Some(packet) = endpoint.next().await {
         let mut buffer = Vec::new();
 
-        let messge = Message::new(&buffer).unwrap();
+        let message = Message::new(&buffer).unwrap();
         match message {
             Message::Request(msg) => unimplemented!(),
             Message::Payload(msg) => unimplemented!(),

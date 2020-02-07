@@ -1,4 +1,4 @@
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum MessageType {
     Init,
     Response,
@@ -14,7 +14,6 @@ pub enum Message {
     Request(RequestMessage),
     Payload(PayloadMessage),
     Error(ErrorMessage),
-    Unknown,
 }
 
 impl Message {
