@@ -25,32 +25,32 @@ impl HermodServer {
             let mut incoming = listener.incoming();
 
             while let Some(stream) = incoming.next().await {
-                let stream = stream.unwrap();
                 task::spawn(async {
-                    handle_connection(stream).await.unwrap();
+                    let mut stream = stream.unwrap();
+                    handle_connection(&mut stream).await.unwrap();
                 });
             }
         });
     }
 }
 
-async fn handle_connection(stream: TcpStream) -> io::Result<()> {
+async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
     // try convert packet to HERMOD_MSG
     let mut buffer = Vec::new();
-    let message = Message::new(&buffer).unwrap();
+    let message = Message::from_buffer(&buffer).unwrap();
 
     let peer = match message {
-        Message::Init(msg) => Peer::new_client_peer(&msg.get_id()),
+        Message::Init(ref msg) => Peer::new_client_peer(&msg.get_id()),
         _ => unimplemented!(), // Received unexpected message, close connection
     };
 
-    let mut endpoint = Endpoint::server(stream, peer);
+    let mut endpoint = Endpoint::server(stream, peer, &message).await;
 
     while let Some(packet) = endpoint.next().await {
         let mut buffer = Vec::new();
 
-        let message = Message::new(&buffer).unwrap();
+        let message = Message::from_buffer(&buffer).unwrap();
         match message {
             Message::Request(msg) => unimplemented!(),
             Message::Payload(msg) => unimplemented!(),

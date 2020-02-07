@@ -17,17 +17,29 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn new(buffer: &[u8]) -> Result<Self, &'static str> {
+    pub fn from_buffer(buffer: &[u8]) -> Result<Self, &'static str> {
         let msg_type = parse_message_type(buffer[0]);
+        let msg = match msg_type {
+            MessageType::Init => Message::Init(InitMessage::from_buffer(buffer)),
+            MessageType::Response => Message::Response(ResponseMessage::from_buffer(buffer)),
+            MessageType::Request => Message::Request(RequestMessage::from_buffer(buffer)),
+            MessageType::Payload => Message::Payload(PayloadMessage::from_buffer(buffer)),
+            MessageType::Error => Message::Error(ErrorMessage::from_buffer(buffer)),
+            MessageType::Unknown => unimplemented!(),
+        };
+        Ok(msg)
+    }
+
+    pub fn new(buffer: &[u8], msg_type: MessageType) -> Self {
         let msg = match msg_type {
             MessageType::Init => Message::Init(InitMessage::new(buffer)),
             MessageType::Response => Message::Response(ResponseMessage::new(buffer)),
             MessageType::Request => Message::Request(RequestMessage::new(buffer)),
             MessageType::Payload => Message::Payload(PayloadMessage::new(buffer)),
             MessageType::Error => Message::Error(ErrorMessage::new(buffer)),
-            MessageType::Unknown => unimplemented!(),
+            MessageType::Unknown => unreachable!(),
         };
-        Ok(msg)
+        msg
     }
 
     pub fn get_type(&self) -> MessageType {
@@ -42,6 +54,16 @@ impl Message {
 
     pub fn len(&self) -> usize {
         unimplemented!();
+    }
+
+    pub fn get_payload(&self) -> &[u8] {
+        match self {
+            Message::Init(msg) => &msg.payload,
+            Message::Response(msg) => &msg.payload,
+            Message::Request(msg) => &msg.payload,
+            Message::Payload(msg) => &msg.payload,
+            Message::Error(msg) => &msg.payload,
+        }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -63,19 +85,23 @@ pub fn parse_message_type(value: u8) -> MessageType {
 pub struct InitMessage {
     pub msg_type: MessageType,
     pub id: String,
-    pub noise_payload: Vec<u8>,
+    pub payload: Vec<u8>,
 }
 
 impl InitMessage {
     pub fn new(buffer: &[u8]) -> Self {
+        unimplemented!()
+    }
+
+    pub fn from_buffer(buffer: &[u8]) -> Self {
         let msg_type = MessageType::Init;
         let id = String::from_utf8_lossy(&buffer[1..5]);
-        let noise_payload = buffer[6..].to_owned();
+        let payload = buffer[6..].to_owned();
 
         InitMessage {
             msg_type,
             id: id.into_owned(),
-            noise_payload,
+            payload,
         }
     }
 
@@ -86,40 +112,60 @@ impl InitMessage {
 
 pub struct ResponseMessage {
     pub msg_type: MessageType,
+    pub payload: Vec<u8>,
 }
 
 impl ResponseMessage {
     pub fn new(buffer: &[u8]) -> Self {
+        unimplemented!()
+    }
+
+    pub fn from_buffer(buffer: &[u8]) -> Self {
         unimplemented!();
     }
 }
 
 pub struct RequestMessage {
     pub msg_type: MessageType,
+    pub payload: Vec<u8>,
 }
 
 impl RequestMessage {
     pub fn new(buffer: &[u8]) -> Self {
+        unimplemented!()
+    }
+
+    pub fn from_buffer(buffer: &[u8]) -> Self {
         unimplemented!();
     }
 }
 
 pub struct PayloadMessage {
     pub msg_type: MessageType,
+    pub payload: Vec<u8>,
 }
 
 impl PayloadMessage {
     pub fn new(buffer: &[u8]) -> Self {
+        unimplemented!()
+    }
+
+    pub fn from_buffer(buffer: &[u8]) -> Self {
         unimplemented!();
     }
 }
 
 pub struct ErrorMessage {
     pub msg_type: MessageType,
+    pub payload: Vec<u8>,
 }
 
 impl ErrorMessage {
     pub fn new(buffer: &[u8]) -> Self {
+        unimplemented!()
+    }
+
+    pub fn from_buffer(buffer: &[u8]) -> Self {
         unimplemented!();
     }
 }

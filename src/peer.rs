@@ -1,8 +1,8 @@
 use crate::client::{Client, KNOWN_CLIENTS};
 use crate::config::{CLIENT_CONFIG, SERVER_CONFIG};
-use crate::message::Message;
+use crate::message::{Message, MessageType};
 use crate::noise::NoiseRole;
-use crate::noise::NoiseSession;
+use crate::noise::NoiseStream;
 use crate::server::Server;
 
 use std::error::Error;
@@ -56,37 +56,23 @@ impl Stream for Endpoint {
 
 pub struct Endpoint {
     peer: Peer,
-    stream: TcpStream,
-    session: NoiseSession,
+    stream: NoiseStream,
 }
 
 impl Endpoint {
-    pub fn client(stream: TcpStream, peer: Peer) -> Self {
-        let session = NoiseSession::new(&peer, &*CLIENT_CONFIG, NoiseRole::Initiator).unwrap();
-
-        Endpoint {
-            peer,
-            stream,
-            session,
-        }
-    }
-
-    pub fn server(stream: TcpStream, peer: Peer) -> Self {
-        let session = NoiseSession::new(&peer, &*SERVER_CONFIG, NoiseRole::Responder).unwrap();
-
-        Endpoint {
-            peer,
-            stream,
-            session,
-        }
-    }
-
-    pub async fn send(&mut self, message: &Message) {
-        let len = message.len();
-        let mut payload = Vec::with_capacity(len);
-        self.session
-            .write_message(message.as_bytes(), &mut payload)
+    pub async fn client(stream: &mut TcpStream, peer: Peer) -> Self {
+        let stream = NoiseStream::new_initiator(&peer, &*CLIENT_CONFIG, stream)
+            .await
             .unwrap();
-        self.stream.write_all(&payload).await.unwrap();
+
+        Endpoint { peer, stream }
+    }
+
+    pub async fn server(stream: &mut TcpStream, peer: Peer, msg: &Message) -> Self {
+        let stream = NoiseStream::new_responder(&peer, &*SERVER_CONFIG, stream, msg)
+            .await
+            .unwrap();
+
+        Endpoint { peer, stream }
     }
 }
