@@ -8,8 +8,6 @@ use snow::{self, Builder, HandshakeState, TransportState};
 use async_std::net::TcpStream;
 use async_std::prelude::*;
 
-static NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
-
 pub enum NoiseRole {
     Initiator,
     Responder,
