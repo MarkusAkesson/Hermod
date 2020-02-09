@@ -23,7 +23,6 @@ impl HermodServer {
             println!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener.incoming();
-
             while let Some(stream) = incoming.next().await {
                 task::spawn(async {
                     let mut stream = stream.unwrap();
@@ -51,12 +50,14 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
         let mut buffer = Vec::new();
 
         let message = Message::from_buffer(&buffer).unwrap();
-        match message {
+        let response = match message {
             Message::Request(msg) => unimplemented!(),
             Message::Payload(msg) => unimplemented!(),
             Message::Error(msg) => unimplemented!(),
             _ => unimplemented!(),
-        }
+        };
+
+        endpoint.write(response.to_bytes()).await?;
     }
     Ok(())
 }
