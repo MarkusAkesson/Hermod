@@ -1,3 +1,4 @@
+use crate::command::Command;
 use crate::config::{ClientConfig, ServerConfig};
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
@@ -6,7 +7,29 @@ use crate::peer::Peer;
 use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
+use async_std::sync::{channel, Receiver, Sender};
 use async_std::task;
+
+pub struct HermodClient {
+    config: ClientConfig,
+}
+
+impl HermodClient {
+    pub fn new(config: ClientConfig) -> Self {
+        HermodClient { config }
+    }
+
+    pub async fn execute(&self) {
+        let mut stream = TcpStream::connect(self.config.get_hostname())
+            .await
+            .unwrap();
+        let peer = Peer::new_server_peer(self.config.get_hostname());
+        Endpoint::client(&mut stream, peer).await;
+        let (send, recv): (Sender<()>, Receiver<()>) = channel(50);
+        let command = Command::new(&self.config, recv);
+        task::block_on(async { unimplemented!() });
+    }
+}
 
 pub struct HermodServer {
     config: ServerConfig,
