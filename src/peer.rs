@@ -77,8 +77,8 @@ impl Endpoint {
         &self.peer
     }
 
-    pub async fn send(&mut self, buf: &[u8]) {
-        self.stream.send(buf).await;
+    pub async fn send(&mut self, msg: &Message) {
+        self.stream.send(msg.get_type(), &msg.to_bytes()).await;
     }
 
     pub async fn recv(&mut self) -> Message {

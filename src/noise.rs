@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::consts::*;
-use crate::message::Message;
+use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
 use snow::{self, Builder, HandshakeState, TransportState};
@@ -79,9 +79,11 @@ impl NoiseStream {
         &self.stream
     }
 
-    pub async fn send(&mut self, plaintext: &[u8]) {
-        let mut buffer = Vec::with_capacity(plaintext.len());
-        self.noise.write_message(plaintext, &mut buffer).unwrap();
+    pub async fn send(&mut self, msg_type: MessageType, plaintext: &[u8]) {
+        let mut buffer = vec![0u8; plaintext.len()];
+        let msg_len = MSG_HEADER_LEN + self.noise.write_message(plaintext, &mut buffer).unwrap();
+        self.stream.write_all(&[msg_type as u8]).await.unwrap();
+        self.stream.write_all(&msg_len.to_be_bytes()).await.unwrap();
         self.stream.write_all(&buffer).await.unwrap();
     }
 

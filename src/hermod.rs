@@ -55,7 +55,7 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
         let response = message.process();
 
         if let Some(res) = response {
-            endpoint.send(res.to_bytes()).await;
+            endpoint.send(&res).await;
         }
     }
     Ok(())

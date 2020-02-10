@@ -2,7 +2,7 @@ use std::convert::From;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum MessageType {
-    Init,
+    Init = 1,
     Response,
     Request,
     Payload,
