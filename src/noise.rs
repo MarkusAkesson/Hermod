@@ -59,7 +59,7 @@ impl NoiseStream {
         })
     }
 
-    pub fn create<C: Config>(
+    fn create<C: Config>(
         peer: &Peer,
         config: &C,
         role: NoiseRole,
@@ -73,6 +73,30 @@ impl NoiseStream {
             NoiseRole::Initiator => builder.build_initiator(),
             NoiseRole::Responder => builder.build_responder(),
         }
+    }
+
+    pub fn get_stream(&self) -> &TcpStream {
+        &self.stream
+    }
+
+    pub async fn send(&mut self, plaintext: &[u8]) {
+        let mut buffer = Vec::with_capacity(plaintext.len());
+        self.noise.write_message(plaintext, &mut buffer).unwrap();
+        self.stream.write_all(&buffer).await.unwrap();
+    }
+
+    pub async fn recv(&mut self) -> Message {
+        let mut msg_type = vec![0u8, MSG_HEADER_LEN as u8];
+        self.stream.read_exact(&mut msg_type).await.unwrap();
+        let mut length = vec![0u8, MSG_LENGTH_LEN as u8];
+        self.stream.read_exact(&mut length).await.unwrap();
+        let msg_len = (length[0] as u16) << 8 & length[1] as u16;
+        let mut enc_payload = Vec::with_capacity(msg_len as usize);
+        self.stream.read_exact(&mut enc_payload).await.unwrap();
+        let mut payload = Vec::with_capacity(msg_len as usize);
+        self.noise.read_message(&enc_payload, &mut payload).unwrap();
+
+        crate::message::Message::from_buffer(msg_type[0], &payload).unwrap()
     }
 }
 

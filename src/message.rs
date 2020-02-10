@@ -1,3 +1,5 @@
+use std::convert::From;
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum MessageType {
     Init,
@@ -16,10 +18,22 @@ pub enum Message {
     Error(ErrorMessage),
 }
 
+impl From<u8> for MessageType {
+    fn from(value: u8) -> MessageType {
+        match value {
+            0x1 => MessageType::Init,
+            0x2 => MessageType::Response,
+            0x3 => MessageType::Request,
+            0x4 => MessageType::Payload,
+            0x5 => MessageType::Error,
+            _ => MessageType::Unknown,
+        }
+    }
+}
+
 impl Message {
-    pub fn from_buffer(buffer: &[u8]) -> Result<Self, &'static str> {
-        let msg_type = parse_message_type(buffer[0]);
-        let msg = match msg_type {
+    pub fn from_buffer(msg_type: u8, buffer: &[u8]) -> Result<Self, &'static str> {
+        let msg = match MessageType::from(msg_type) {
             MessageType::Init => Message::Init(InitMessage::from_buffer(buffer)),
             MessageType::Response => Message::Response(ResponseMessage::from_buffer(buffer)),
             MessageType::Request => Message::Request(RequestMessage::from_buffer(buffer)),
@@ -66,19 +80,18 @@ impl Message {
         }
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        unimplemented!()
+    pub fn process(&self) -> Option<Message> {
+        match self {
+            Message::Init(msg) => None,
+            Message::Response(msg) => None,
+            Message::Request(msg) => None,
+            Message::Payload(msg) => None,
+            Message::Error(msg) => None,
+        }
     }
-}
 
-pub fn parse_message_type(value: u8) -> MessageType {
-    match value {
-        0x1 => MessageType::Init,
-        0x2 => MessageType::Response,
-        0x3 => MessageType::Request,
-        0x4 => MessageType::Payload,
-        0x5 => MessageType::Error,
-        _ => MessageType::Unknown,
+    pub fn to_bytes(&self) -> &[u8] {
+        unimplemented!()
     }
 }
 

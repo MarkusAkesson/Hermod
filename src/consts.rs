@@ -1,6 +1,9 @@
-pub const PACKET_MAXLENGTH: usize = 65532;
+pub const PACKET_MAXLENGTH: usize = 65536;
 pub const MAC_LENGTH: usize = 16;
+
+pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
+pub const MSG_LENGTH_LEN: usize = 2;
 
 pub static NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
 

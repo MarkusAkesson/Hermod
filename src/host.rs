@@ -1,4 +1,4 @@
-pub struct Server {
+pub struct Host {
     pub hostname: String,
     pub id_token: String,
     pub public_key: Vec<u8>,
@@ -6,4 +6,4 @@ pub struct Server {
     pub server_key: Vec<u8>,
 }
 
-impl Server {}
+impl Host {}
