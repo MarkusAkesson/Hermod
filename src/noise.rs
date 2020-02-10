@@ -88,12 +88,12 @@ impl NoiseStream {
     pub async fn recv(&mut self) -> Message {
         let mut msg_type = vec![0u8, MSG_HEADER_LEN as u8];
         self.stream.read_exact(&mut msg_type).await.unwrap();
-        let mut length = vec![0u8, MSG_LENGTH_LEN as u8];
+        let mut length = [0u8, MSG_LENGTH_LEN as u8];
         self.stream.read_exact(&mut length).await.unwrap();
-        let msg_len = (length[0] as u16) << 8 & length[1] as u16;
-        let mut enc_payload = Vec::with_capacity(msg_len as usize);
+        let msg_len = u16::from_be_bytes(length) as usize;
+        let mut enc_payload = vec![0u8; msg_len];
         self.stream.read_exact(&mut enc_payload).await.unwrap();
-        let mut payload = Vec::with_capacity(msg_len as usize);
+        let mut payload = vec![0u8; msg_len];
         self.noise.read_message(&enc_payload, &mut payload).unwrap();
 
         crate::message::Message::from_buffer(msg_type[0], &payload).unwrap()
