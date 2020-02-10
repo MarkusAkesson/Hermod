@@ -1,5 +1,5 @@
 use crate::config::{ClientConfig, ServerConfig};
-use crate::message::Message;
+use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 
@@ -37,7 +37,7 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
     // try convert packet to HERMOD_MSG
     let mut buffer = Vec::new();
-    let message = Message::from_buffer(&buffer).unwrap();
+    let message = Message::from_buffer(buffer[0], &buffer[1..]).unwrap();
 
     let peer = match message {
         Message::Init(ref msg) => Peer::new_client_peer(&msg.get_id()),
@@ -46,18 +46,17 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
 
     let mut endpoint = Endpoint::server(stream, peer, &message).await;
 
-    while let Some(packet) = endpoint.next().await {
-        let mut buffer = Vec::new();
+    loop {
+        let message = endpoint.recv().await;
+        if message.get_type() == MessageType::Error {
+            // TODO: Log error
+            break;
+        }
+        let response = message.process();
 
-        let message = Message::from_buffer(&buffer).unwrap();
-        let response = match message {
-            Message::Request(msg) => unimplemented!(),
-            Message::Payload(msg) => unimplemented!(),
-            Message::Error(msg) => unimplemented!(),
-            _ => unimplemented!(),
-        };
-
-        endpoint.write(response.to_bytes()).await?;
+        if let Some(res) = response {
+            endpoint.send(res.to_bytes()).await;
+        }
     }
     Ok(())
 }

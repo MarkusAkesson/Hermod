@@ -1,13 +1,13 @@
 use crate::client::{Client, KNOWN_CLIENTS};
 use crate::config::{CLIENT_CONFIG, SERVER_CONFIG};
+use crate::host::Host;
 use crate::message::{Message, MessageType};
-use crate::noise::NoiseRole;
 use crate::noise::NoiseStream;
-use crate::server::Server;
 
 use std::error::Error;
 use std::pin::Pin;
 
+use async_std::future;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
 use async_std::stream::Stream;
@@ -15,7 +15,7 @@ use async_std::task::{Context, Poll};
 
 pub enum Peer {
     Client(Client),
-    Server(Server),
+    Host(Host),
 }
 
 impl Peer {
@@ -35,22 +35,15 @@ impl Peer {
     pub fn get_id(&self) -> &str {
         match self {
             Peer::Client(client) => &client.id_token,
-            Peer::Server(server) => &server.hostname,
+            Peer::Host(host) => &host.hostname,
         }
     }
 
     pub fn get_public_key(&self) -> &[u8] {
         match self {
             Peer::Client(client) => &client.client_key,
-            Peer::Server(server) => &server.public_key,
+            Peer::Host(host) => &host.public_key,
         }
-    }
-}
-
-impl Stream for Endpoint {
-    type Item = u8;
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        unimplemented!();
     }
 }
 
@@ -74,5 +67,21 @@ impl Endpoint {
             .unwrap();
 
         Endpoint { peer, stream }
+    }
+
+    pub fn get_stream(&self) -> &TcpStream {
+        self.stream.get_stream()
+    }
+
+    pub fn get_peer(&self) -> &Peer {
+        &self.peer
+    }
+
+    pub async fn send(&mut self, buf: &[u8]) {
+        self.stream.send(buf).await;
+    }
+
+    pub async fn recv(&mut self) -> Message {
+        self.stream.recv().await
     }
 }
