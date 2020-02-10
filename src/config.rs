@@ -1,5 +1,6 @@
 use crate::consts::SERVER_PRIVATE_KEY_FILE;
 use crate::consts::SERVER_PUBLIC_KEY_FILE;
+use crate::request::Request;
 
 use std::fs::File;
 use std::io;
@@ -25,9 +26,12 @@ pub struct ServerConfig {
 pub struct ClientConfig {
     public_key: Vec<u8>,
     private_key: Vec<u8>,
-    server_hostname: String,
+    hostname: String,
     id_token: String,
     compression: bool,
+    pub source: String,
+    pub destination: String,
+    pub request: Request,
 }
 
 impl Config for ServerConfig {
@@ -76,5 +80,9 @@ impl ServerConfig {
 impl ClientConfig {
     pub fn new() -> Self {
         unimplemented!();
+    }
+
+    pub fn get_hostname(&self) -> &str {
+        &self.hostname
     }
 }
