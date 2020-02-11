@@ -43,7 +43,7 @@ impl<'a> Request<'a> {
     async fn upload(&self) {
         let file = File::open(self.source).await.unwrap();
         let mut buf_reader = BufReader::new(file);
-        let (tx, rx) = async_std::sync::channel(100);
+        let (tx, rx) = async_std::sync::channel(32);
         loop {
             let mut buffer = Vec::with_capacity(1024);
             let n = buf_reader
