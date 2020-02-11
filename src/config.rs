@@ -1,6 +1,6 @@
 use crate::consts::SERVER_PRIVATE_KEY_FILE;
 use crate::consts::SERVER_PUBLIC_KEY_FILE;
-use crate::request::Request;
+use crate::request::{Request, RequestMethod};
 
 use std::fs::File;
 use std::io;
@@ -31,7 +31,7 @@ pub struct ClientConfig {
     compression: bool,
     pub source: String,
     pub destination: String,
-    pub request: Request,
+    pub request: RequestMethod,
 }
 
 impl Config for ServerConfig {

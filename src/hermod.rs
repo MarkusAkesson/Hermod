@@ -19,15 +19,18 @@ impl HermodClient {
         HermodClient { config }
     }
 
-    pub async fn execute(&self) {
-        let mut stream = TcpStream::connect(self.config.get_hostname())
-            .await
-            .unwrap();
-        let peer = Peer::new_server_peer(self.config.get_hostname());
-        Endpoint::client(&mut stream, peer).await;
-        let (send, recv): (Sender<()>, Receiver<()>) = channel(50);
-        let req = Request::new(&self.config);
-        task::block_on(async { unimplemented!() });
+    pub fn execute(&self) {
+        task::block_on(async {
+            let mut stream = TcpStream::connect(self.config.get_hostname())
+                .await
+                .unwrap();
+            let peer = Peer::new_server_peer(self.config.get_hostname());
+            // Conduct noise handshake
+            Endpoint::client(&mut stream, peer).await;
+            // Execute the request
+            let request = Request::new(&self.config);
+            request.exec().await;
+        });
     }
 }
 
@@ -75,6 +78,7 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
             // TODO: Log error
             break;
         }
+
         let response = message.process();
 
         if let Some(res) = response {
