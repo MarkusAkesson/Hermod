@@ -40,7 +40,9 @@ impl<'a> Request<'a> {
     async fn upload(&self, endpoint: &mut Endpoint) {
         let file = File::open(self.source).await.unwrap();
         let mut buf_reader = BufReader::new(file);
-        let (tx, rx) = async_std::sync::channel(32);
+
+        let (tx, rx) = async_std::sync::channel(100);
+
         // Spawn a task that reads a file and sends it to a receiver, responisble for sending the
         // messages to the endpoint/peer
         async_std::task::spawn(async move {
@@ -69,6 +71,28 @@ impl<'a> Request<'a> {
 
     async fn download(&self, endpoint: &mut Endpoint) {
         let file = File::create(self.destination).await.unwrap();
-        let buf_reader = BufWriter::new(file);
+        let mut buf_writer = BufWriter::new(file);
+
+        let (tx, rx): (
+            async_std::sync::Sender<Message>,
+            async_std::sync::Receiver<Message>,
+        ) = async_std::sync::channel(100);
+
+        async_std::task::spawn(async move {
+            while let Some(msg) = rx.recv().await {
+                let payload = msg.get_payload();
+                buf_writer.write(payload).await.unwrap();
+            }
+            buf_writer.flush().await.unwrap();
+        });
+        loop {
+            let msg = endpoint.recv().await;
+            if msg.get_type() == MessageType::Error {
+                // TODO: Log error
+                break;
+            }
+
+            tx.send(msg).await;
+        }
     }
 }
