@@ -26,10 +26,10 @@ impl HermodClient {
                 .unwrap();
             let peer = Peer::new_server_peer(self.config.get_hostname());
             // Conduct noise handshake
-            Endpoint::client(&mut stream, peer).await;
+            let mut endpoint = Endpoint::client(&mut stream, peer).await;
             // Execute the request
             let request = Request::new(&self.config);
-            request.exec().await;
+            request.exec(&mut endpoint).await;
         });
     }
 }
