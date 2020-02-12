@@ -82,11 +82,15 @@ impl NoiseStream {
     pub async fn send(&mut self, msg: &Message) {
         let msg_type = msg.get_type();
         let plaintext = msg.get_payload();
-        let mut buffer = vec![0u8; plaintext.len()];
-        let msg_len = MSG_HEADER_LEN + self.noise.write_message(plaintext, &mut buffer).unwrap();
+        let mut ciphertext = vec![0u8; plaintext.len()];
+        let msg_len = MSG_HEADER_LEN
+            + self
+                .noise
+                .write_message(plaintext, &mut ciphertext)
+                .unwrap();
         self.stream.write_all(&[msg_type as u8]).await.unwrap();
         self.stream.write_all(&msg_len.to_be_bytes()).await.unwrap();
-        self.stream.write_all(&buffer).await.unwrap();
+        self.stream.write_all(&ciphertext).await.unwrap();
     }
 
     pub async fn recv(&mut self) -> Message {
