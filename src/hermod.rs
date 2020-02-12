@@ -80,12 +80,13 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
         }
 
         match message.get_type() {
-            MessageType::Error => break,
+            MessageType::Error => break, // Received error, log error message, Cloe Connection
             MessageType::Request => process_incomming_request(&message, &mut endpoint).await,
             MessageType::Payload
             | MessageType::Unknown
             | MessageType::Init
-            | MessageType::Response => break,
+            | MessageType::Response
+            | MessageType::EOF => break, // log: Received message out of order {} type, Closing connection
         }
     }
     Ok(())

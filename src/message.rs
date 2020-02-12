@@ -6,6 +6,7 @@ pub enum MessageType {
     Response,
     Request,
     Payload,
+    EOF,
     Error,
     Unknown,
 }
@@ -25,7 +26,8 @@ impl From<u8> for MessageType {
             0x2 => MessageType::Response,
             0x3 => MessageType::Request,
             0x4 => MessageType::Payload,
-            0x5 => MessageType::Error,
+            0x5 => MessageType::EOF,
+            0x6 => MessageType::Error,
             _ => MessageType::Unknown,
         }
     }
@@ -39,7 +41,7 @@ impl Message {
             MessageType::Request => Message::Request(RequestMessage::from_buffer(buffer)),
             MessageType::Payload => Message::Payload(PayloadMessage::from_buffer(buffer)),
             MessageType::Error => Message::Error(ErrorMessage::from_buffer(buffer)),
-            MessageType::Unknown => unimplemented!(),
+            MessageType::Unknown | MessageType::EOF => unimplemented!(),
         };
         Ok(msg)
     }
@@ -51,7 +53,7 @@ impl Message {
             MessageType::Request => Message::Request(RequestMessage::new(buffer)),
             MessageType::Payload => Message::Payload(PayloadMessage::new(buffer)),
             MessageType::Error => Message::Error(ErrorMessage::new(buffer)),
-            MessageType::Unknown => unreachable!(),
+            MessageType::Unknown | MessageType::EOF => unimplemented!(),
         };
         msg
     }
