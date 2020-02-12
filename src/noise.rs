@@ -104,7 +104,7 @@ impl NoiseStream {
         let mut payload = vec![0u8; msg_len];
         self.noise.read_message(&enc_payload, &mut payload).unwrap();
 
-        crate::message::Message::new(MessageType::from(msg_type[0]), &payload)
+        Message::new(MessageType::from(msg_type[0]), &payload)
     }
 }
 
