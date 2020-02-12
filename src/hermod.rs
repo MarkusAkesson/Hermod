@@ -4,6 +4,8 @@ use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;
 
+use std::str;
+
 use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
@@ -63,25 +65,25 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
     // try convert packet to HERMOD_MSG
     let mut buffer = Vec::new();
-    let message = Message::from_buffer(buffer[0], &buffer[1..]).unwrap();
+    let msg = Message::new(MessageType::from(buffer[0]), &buffer[1..]);
 
-    let peer = match message {
-        Message::Init(ref msg) => Peer::new_client_peer(&msg.get_id()),
-        _ => unimplemented!(), // Received unexpected message, close connection
+    let peer = match msg.get_type() {
+        MessageType::Init => Peer::new_client_peer(&str::from_utf8(msg.get_payload()).unwrap()),
+        _ => unimplemented!(), // Received unexpected message, log and drop connection
     };
 
-    let mut endpoint = Endpoint::server(stream, peer, &message).await;
+    let mut endpoint = Endpoint::server(stream, peer, &msg).await;
 
     loop {
-        let message = endpoint.recv().await;
-        if message.get_type() == MessageType::Error {
+        let msg = endpoint.recv().await;
+        if msg.get_type() == MessageType::Error {
             // TODO: Log error
             break;
         }
 
-        match message.get_type() {
+        match msg.get_type() {
             MessageType::Error => break, // Received error, log error message, Cloe Connection
-            MessageType::Request => process_incomming_request(&message, &mut endpoint).await,
+            MessageType::Request => process_incomming_request(&msg, &mut endpoint).await,
             MessageType::Payload
             | MessageType::Unknown
             | MessageType::Init

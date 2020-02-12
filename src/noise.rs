@@ -79,7 +79,9 @@ impl NoiseStream {
         &self.stream
     }
 
-    pub async fn send(&mut self, msg_type: MessageType, plaintext: &[u8]) {
+    pub async fn send(&mut self, msg: &Message) {
+        let msg_type = msg.get_type();
+        let plaintext = msg.get_payload();
         let mut buffer = vec![0u8; plaintext.len()];
         let msg_len = MSG_HEADER_LEN + self.noise.write_message(plaintext, &mut buffer).unwrap();
         self.stream.write_all(&[msg_type as u8]).await.unwrap();
@@ -98,7 +100,7 @@ impl NoiseStream {
         let mut payload = vec![0u8; msg_len];
         self.noise.read_message(&enc_payload, &mut payload).unwrap();
 
-        crate::message::Message::from_buffer(msg_type[0], &payload).unwrap()
+        crate::message::Message::new(MessageType::from(msg_type[0]), &payload)
     }
 }
 
