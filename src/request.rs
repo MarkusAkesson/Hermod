@@ -78,6 +78,7 @@ impl<'a> Request<'a> {
             async_std::sync::Receiver<Message>,
         ) = async_std::sync::channel(100);
 
+        // Spawn a task that reads the file data to a file.
         async_std::task::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 let payload = msg.get_payload();
@@ -85,6 +86,8 @@ impl<'a> Request<'a> {
             }
             buf_writer.flush().await.unwrap();
         });
+
+        // Recv messages until an Error message has been received or the tcp connection is dropped
         loop {
             let msg = endpoint.recv().await;
             if msg.get_type() == MessageType::Error {

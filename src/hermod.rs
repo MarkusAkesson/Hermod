@@ -79,11 +79,19 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
             break;
         }
 
-        let response = message.process();
-
-        if let Some(res) = response {
-            endpoint.send(&res).await;
+        match message.get_type() {
+            MessageType::Error => break,
+            MessageType::Request => process_incomming_request(&message, &mut endpoint).await,
+            MessageType::Payload
+            | MessageType::Unknown
+            | MessageType::Init
+            | MessageType::Response => break,
         }
     }
     Ok(())
+}
+
+async fn process_incomming_request(msg: &Message, endpoint: &mut Endpoint) {
+    let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
+    request.exec(endpoint).await;
 }
