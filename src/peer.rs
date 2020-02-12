@@ -78,7 +78,7 @@ impl Endpoint {
     }
 
     pub async fn send(&mut self, msg: &Message) {
-        self.stream.send(msg.get_type(), &msg.to_bytes()).await;
+        self.stream.send(msg).await;
     }
 
     pub async fn recv(&mut self) -> Message {

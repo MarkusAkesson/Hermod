@@ -60,7 +60,7 @@ impl<'a> Request<'a> {
                     // Handle EOF in send loop? when rx dropx send EOF?
                     break;
                 }
-                let msg = Message::new(&buffer, MessageType::Payload);
+                let msg = Message::new(MessageType::Payload, &buffer);
                 tx.send(msg).await;
             }
         });
