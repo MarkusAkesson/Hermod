@@ -1,4 +1,4 @@
-use crate::config::{ClientConfig, Config, ServerConfig};
+use crate::config::{ClientConfig, ServerConfig};
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
@@ -10,8 +10,6 @@ use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::sync::Arc;
-use async_std::sync::RwLock;
-use async_std::sync::{channel, Receiver, Sender};
 use async_std::task;
 
 pub struct HermodClient<'hc> {
@@ -38,16 +36,10 @@ impl<'hc> HermodClient<'hc> {
     }
 }
 
-pub struct HermodServer {
-    config: Arc<ServerConfig>,
-}
+pub struct HermodServer {}
 
 impl<'hs> HermodServer {
-    pub fn new(config: Arc<ServerConfig>) -> HermodServer {
-        HermodServer { config }
-    }
-
-    pub async fn run_server(&self, cfg: Arc<ServerConfig>) {
+    pub async fn run_server(cfg: Arc<ServerConfig>) {
         let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
         println!("Listening on {}", listener.local_addr().unwrap());
 
@@ -94,5 +86,5 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
 }
 async fn process_incomming_request(msg: &Message, endpoint: &mut Endpoint) {
     let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
-    request.exec(endpoint).await;
+    request.respond(endpoint).await;
 }
