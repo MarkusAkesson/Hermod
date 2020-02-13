@@ -29,6 +29,13 @@ impl<'a> Request<'a> {
         }
     }
 
+    pub async fn respond(&self, endpoint: &mut Endpoint) {
+        match self.method {
+            RequestMethod::Upload => self.download(endpoint).await,
+            RequestMethod::Download => self.upload(endpoint).await,
+        }
+    }
+
     pub async fn exec(&self, endpoint: &mut Endpoint) {
         match self.method {
             RequestMethod::Upload => self.upload(endpoint).await,
