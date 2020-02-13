@@ -1,5 +1,5 @@
 use crate::client::{Client, KNOWN_CLIENTS};
-use crate::config::{CLIENT_CONFIG, SERVER_CONFIG};
+use crate::config::{ClientConfig, SERVER_CONFIG};
 use crate::host::Host;
 use crate::message::{Message, MessageType};
 use crate::noise::NoiseStream;
@@ -11,6 +11,7 @@ use async_std::future;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
 use async_std::stream::Stream;
+use async_std::sync::Arc;
 use async_std::task::{Context, Poll};
 
 pub enum Peer {
@@ -52,9 +53,9 @@ pub struct Endpoint {
     stream: NoiseStream,
 }
 
-impl Endpoint {
-    pub async fn client(stream: &mut TcpStream, peer: Peer) -> Self {
-        let stream = NoiseStream::new_initiator(&peer, &*CLIENT_CONFIG, stream)
+impl<'e> Endpoint {
+    pub async fn client(stream: &mut TcpStream, peer: Peer, cfg: &ClientConfig<'e>) -> Self {
+        let stream = NoiseStream::new_initiator(&peer, cfg, stream)
             .await
             .unwrap();
 

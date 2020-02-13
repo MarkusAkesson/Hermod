@@ -7,6 +7,7 @@ use snow::{self, Builder, HandshakeState, TransportState};
 
 use async_std::net::TcpStream;
 use async_std::prelude::*;
+use async_std::sync::Arc;
 
 pub enum NoiseRole {
     Initiator,
@@ -23,13 +24,17 @@ pub struct NoiseStream {
     noise: TransportState,
 }
 
-impl NoiseStream {
-    pub async fn new_initiator<C: Config>(
+impl<'cfg> NoiseStream {
+    pub async fn new_initiator<C: Config<'cfg>>(
         peer: &Peer,
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, snow::error::Error> {
-        let mut noise = NoiseStream::create(peer, config, NoiseRole::Initiator)?;
+        let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
+            .local_private_key(config.get_private_key())
+            .remote_public_key(peer.get_public_key())
+            .prologue(peer.get_id().as_bytes())
+            .build_initiator()?;
 
         client_handshake(stream, &mut noise).await?;
 
@@ -41,13 +46,17 @@ impl NoiseStream {
         })
     }
 
-    pub async fn new_responder<C: Config>(
+    pub async fn new_responder<C: Config<'cfg>>(
         peer: &Peer,
         config: &C,
         stream: &mut TcpStream,
         message: &Message,
     ) -> Result<Self, snow::error::Error> {
-        let mut noise = NoiseStream::create(peer, config, NoiseRole::Responder)?;
+        let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
+            .local_private_key(config.get_private_key())
+            .remote_public_key(peer.get_public_key())
+            .prologue(peer.get_id().as_bytes())
+            .build_responder()?;
 
         server_handshake(stream, &mut noise, message).await?;
 
@@ -57,22 +66,6 @@ impl NoiseStream {
             stream: stream.to_owned(),
             noise,
         })
-    }
-
-    fn create<C: Config>(
-        peer: &Peer,
-        config: &C,
-        role: NoiseRole,
-    ) -> Result<HandshakeState, snow::error::Error> {
-        let builder: Builder<'_> = Builder::new(NOISE_PATTERN.clone().parse()?)
-            .local_private_key(config.get_private_key())
-            .remote_public_key(peer.get_public_key())
-            .prologue(peer.get_id().as_bytes());
-
-        match role {
-            NoiseRole::Initiator => builder.build_initiator(),
-            NoiseRole::Responder => builder.build_responder(),
-        }
     }
 
     pub fn get_stream(&self) -> &TcpStream {
