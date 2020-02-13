@@ -1,4 +1,4 @@
-use crate::config::{ClientConfig, ServerConfig};
+use crate::config::{ClientConfig, Config, ServerConfig};
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
@@ -9,15 +9,17 @@ use std::str;
 use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
+use async_std::sync::Arc;
+use async_std::sync::RwLock;
 use async_std::sync::{channel, Receiver, Sender};
 use async_std::task;
 
-pub struct HermodClient {
-    config: ClientConfig,
+pub struct HermodClient<'hc> {
+    config: ClientConfig<'hc>,
 }
 
-impl HermodClient {
-    pub fn new(config: ClientConfig) -> Self {
+impl<'hc> HermodClient<'hc> {
+    pub fn new(config: ClientConfig<'hc>) -> Self {
         HermodClient { config }
     }
 
@@ -28,7 +30,7 @@ impl HermodClient {
                 .unwrap();
             let peer = Peer::new_server_peer(self.config.get_hostname());
             // Conduct noise handshake
-            let mut endpoint = Endpoint::client(&mut stream, peer).await;
+            let mut endpoint = Endpoint::client(&mut stream, peer, &self.config).await;
             // Execute the request
             let request = Request::new(&self.config);
             request.exec(&mut endpoint).await;
@@ -37,30 +39,27 @@ impl HermodClient {
 }
 
 pub struct HermodServer {
-    config: ServerConfig,
+    config: Arc<ServerConfig>,
 }
 
-impl HermodServer {
-    pub fn new(config: ServerConfig) -> HermodServer {
+impl<'hs> HermodServer {
+    pub fn new(config: Arc<ServerConfig>) -> HermodServer {
         HermodServer { config }
     }
 
-    pub fn run_server(&self) {
-        task::block_on(async {
-            let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
-            println!("Listening on {}", listener.local_addr().unwrap());
+    pub async fn run_server(&self, cfg: Arc<ServerConfig>) {
+        let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+        println!("Listening on {}", listener.local_addr().unwrap());
 
-            let mut incoming = listener.incoming();
-            while let Some(stream) = incoming.next().await {
-                task::spawn(async {
-                    let mut stream = stream.unwrap();
-                    handle_connection(&mut stream).await.unwrap();
-                });
-            }
-        });
+        let mut incoming = listener.incoming();
+        while let Some(stream) = incoming.next().await {
+            task::spawn(async {
+                let mut stream = stream.unwrap();
+                handle_connection(&mut stream).await.unwrap();
+            });
+        }
     }
 }
-
 async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
     // try convert packet to HERMOD_MSG
@@ -93,7 +92,6 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     }
     Ok(())
 }
-
 async fn process_incomming_request(msg: &Message, endpoint: &mut Endpoint) {
     let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
     request.exec(endpoint).await;
