@@ -88,6 +88,20 @@ impl<'a> Request<'a> {
         // Spawn a task that reads the file data to a file.
         async_std::task::spawn(async move {
             while let Some(msg) = rx.recv().await {
+                match msg.get_type() {
+                    MessageType::Error => return, // Received error, log error message, Close Connection, Remove file
+                    MessageType::Payload => (),
+                    MessageType::EOF => {
+                        // EOF, flush buffer and return
+                        // TODO: Log writing to file {} file.name
+                        buf_writer.flush().await.unwrap();
+                        return;
+                    }
+                    MessageType::Request
+                    | MessageType::Unknown
+                    | MessageType::Init
+                    | MessageType::Response => return, // log Received message out of order{} type, Closing connection
+                }
                 let payload = msg.get_payload();
                 buf_writer.write(payload).await.unwrap();
             }
