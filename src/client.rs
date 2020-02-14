@@ -1,18 +1,26 @@
-use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::BufReader;
+use std::io::{self, BufReader, BufWriter};
 use std::path::Path;
+
+use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref KNOWN_CLIENTS: HashMap<String, Client> =
-        Client::load_clients(Path::new("~/.hermod/authorized_clients"));
+        Client::load_clients(Path::new("/home/markus/.hermod/authorized_clients"));
 }
 
 pub struct Client {
     pub id_token: String,
     pub client_key: Vec<u8>,
+}
+
+impl fmt::Display for Client {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}, {}", self.id_token, base64::encode(&self.client_key))
+    }
 }
 
 impl Client {
@@ -54,4 +62,25 @@ impl Client {
         }
         clients
     }
+}
+
+pub fn print_known_clients() {
+    let num_clients = KNOWN_CLIENTS.len();
+
+    if num_clients == 0 {
+        println!("No known clients found.");
+        return;
+    }
+
+    let mut writer = BufWriter::new(io::stdout());
+
+    writer
+        .write(format!("Found {} known client(s)\n", num_clients).as_ref())
+        .unwrap();
+    writer
+        .write(format!("TOKEN PUBLIC_KEY\n").as_ref())
+        .unwrap();
+    KNOWN_CLIENTS.values().for_each(|v| {
+        writer.write(format!("{}\n", v).as_ref()).unwrap();
+    });
 }

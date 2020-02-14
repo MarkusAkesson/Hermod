@@ -1,3 +1,4 @@
+use crate::client;
 use crate::consts::*;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
@@ -28,12 +29,13 @@ impl<'hs> HermodServer {
     }
 
     pub fn list_known_clients() {
-        unimplemented!();
+        client::print_known_clients();
     }
 }
 async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
-    // try convert packet to HERMOD_MSG
+
+    // TODO: Clenaup
     let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN];
     stream.read_exact(&mut buffer).await.unwrap();
     let msg = Message::new(MessageType::from(buffer[0]), &buffer[1..]);
