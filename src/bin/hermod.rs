@@ -8,7 +8,7 @@ fn main() {
     match args.subcommand() {
         ("server", Some(server_args)) => start_server(&server_args),
         ("upload", Some(req_args)) | ("download", Some(req_args)) => exec_request(&req_args),
-        ("gen-key", None) => gen_key(),
+        ("gen-key", Some(_)) => gen_key(),
         ("share-key", Some(sk_args)) => share_key(&sk_args),
         _ => {}
     }
@@ -20,7 +20,7 @@ fn start_server(args: &clap::ArgMatches) {
             hermod::genkey::gen_server_keys().unwrap();
             return;
         }
-        ("list", None) => {
+        ("list", Some(_)) => {
             HermodServer::list_known_clients();
             return;
         }
