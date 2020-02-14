@@ -1,18 +1,10 @@
 use crate::client::{Client, KNOWN_CLIENTS};
 use crate::config::{ClientConfig, SERVER_CONFIG};
 use crate::host::Host;
-use crate::message::{Message, MessageType};
+use crate::message::Message;
 use crate::noise::NoiseStream;
 
-use std::error::Error;
-use std::pin::Pin;
-
-use async_std::future;
 use async_std::net::TcpStream;
-use async_std::prelude::*;
-use async_std::stream::Stream;
-use async_std::sync::Arc;
-use async_std::task::{Context, Poll};
 
 pub enum Peer {
     Client(Client),

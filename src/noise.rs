@@ -7,7 +7,6 @@ use snow::{self, Builder, HandshakeState, TransportState};
 
 use async_std::net::TcpStream;
 use async_std::prelude::*;
-use async_std::sync::Arc;
 
 pub enum NoiseRole {
     Initiator,
