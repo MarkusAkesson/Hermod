@@ -32,7 +32,6 @@ impl<'cfg> NoiseStream {
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
-            .prologue(peer.get_id().as_bytes())
             .build_initiator()?;
 
         client_handshake(stream, &mut noise, peer.get_id().as_bytes()).await?;
@@ -54,7 +53,6 @@ impl<'cfg> NoiseStream {
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
-            .prologue(peer.get_id().as_bytes())
             .build_responder()?;
 
         server_handshake(stream, &mut noise, message).await?;
