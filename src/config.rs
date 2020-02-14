@@ -1,6 +1,6 @@
 use crate::consts::SERVER_PRIVATE_KEY_FILE;
 use crate::consts::SERVER_PUBLIC_KEY_FILE;
-use crate::request::{Request, RequestMethod};
+use crate::request::RequestMethod;
 
 use std::fs::File;
 use std::io;
