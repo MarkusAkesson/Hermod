@@ -35,7 +35,7 @@ impl<'cfg> NoiseStream {
             .prologue(peer.get_id().as_bytes())
             .build_initiator()?;
 
-        client_handshake(stream, &mut noise).await?;
+        client_handshake(stream, &mut noise, peer.get_id().as_bytes()).await?;
 
         let noise = noise.into_transport_mode()?;
 
@@ -103,11 +103,15 @@ impl<'cfg> NoiseStream {
 async fn client_handshake(
     stream: &mut TcpStream,
     hs: &mut HandshakeState,
+    token: &[u8],
 ) -> Result<(), snow::error::Error> {
     let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
     let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
 
     let msg_len = hs.write_message(&[], &mut init_buffer)?;
+
+    stream.write_all(&[MessageType::Init as u8]).await.unwrap();
+    stream.write_all(token).await.unwrap();
     stream.write_all(&init_buffer).await.unwrap();
 
     let mut read_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
