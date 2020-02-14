@@ -2,8 +2,6 @@ use hermod::cli;
 use hermod::config::{ClientConfig, ServerConfig};
 use hermod::server::HermodServer;
 
-use async_std::sync::Arc;
-
 fn main() {
     let args = cli::get_matches();
 
@@ -17,7 +15,6 @@ fn main() {
 }
 
 fn start_server(args: &clap::ArgMatches) {
-    let cfg = Arc::new(ServerConfig::new());
     match args.subcommand() {
         ("init", Some(init_args)) => {
             hermod::genkey::gen_server_keys().unwrap();
