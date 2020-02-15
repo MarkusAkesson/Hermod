@@ -63,8 +63,8 @@ impl<'a> Request<'a> {
                     .unwrap();
                 if n == 0 {
                     // EOF reached
-                    // Send EOF message and break loop
-                    // Handle EOF in send loop? when rx dropx send EOF?
+                    let msg = Message::new(MessageType::EOF, &[]);
+                    tx.send(msg).await;
                     break;
                 }
                 let msg = Message::new(MessageType::Payload, &buffer);
