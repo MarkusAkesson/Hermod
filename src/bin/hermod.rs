@@ -1,5 +1,5 @@
 use hermod::cli;
-use hermod::config::{ClientConfig, ServerConfig};
+use hermod::config::{ClientConfig, ClientConfigBuilder, ServerConfig};
 use hermod::server::HermodServer;
 
 fn main() {
@@ -16,7 +16,7 @@ fn main() {
 
 fn start_server(args: &clap::ArgMatches) {
     match args.subcommand() {
-        ("init", Some(init_args)) => {
+        ("init", Some(_)) => {
             hermod::genkey::gen_server_keys().unwrap();
             return;
         }
@@ -32,11 +32,14 @@ fn start_server(args: &clap::ArgMatches) {
 }
 
 fn exec_request(args: &clap::ArgMatches) {
+    let host = hermod::host::load_host(args.value_of("remote").unwrap()).unwrap();
+    let cfg = ClientConfigBuilder::new(&host);
     unimplemented!()
 }
 
 fn gen_key() {
-    unimplemented!()
+    let keys = hermod::genkey::gen_keys().unwrap();
+    let id_token = 5;
 }
 
 fn share_key(args: &clap::ArgMatches) {
