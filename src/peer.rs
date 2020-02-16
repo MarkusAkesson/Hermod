@@ -1,6 +1,6 @@
-use crate::client::{Client, KNOWN_CLIENTS};
 use crate::config::{ClientConfig, SERVER_CONFIG};
 use crate::host::Host;
+use crate::identity::{Client, KNOWN_CLIENTS};
 use crate::message::Message;
 use crate::noise::NoiseStream;
 

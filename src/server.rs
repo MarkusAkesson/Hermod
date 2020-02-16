@@ -1,5 +1,5 @@
-use crate::client;
 use crate::consts::*;
+use crate::identity;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
@@ -29,7 +29,7 @@ impl<'hs> HermodServer {
     }
 
     pub fn list_known_clients() {
-        client::print_known_clients();
+        identity::print_known_clients();
     }
 }
 async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
