@@ -42,13 +42,18 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
         .value_of("destination")
         .expect("Obligatory argument 'destination' missing");
     let compression = args.is_present("compression");
-    let cfg = ClientConfigBuilder::new(&host)
+
+    let builder = ClientConfigBuilder::new(&host)
         .source(source)
         .destination(destination)
         .compression(compression)
-        .request(method)
-        .build_config();
-    async_std::task::block_on(async {});
+        .request(method);
+
+    let cfg = builder.build_config();
+
+    async_std::task::block_on(async {
+        hermod::client::HermodClient::new(cfg).execute().await;
+    });
 }
 
 fn gen_key() {
