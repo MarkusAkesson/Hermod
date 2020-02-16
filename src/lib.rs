@@ -1,8 +1,8 @@
 pub mod cli;
+pub mod client;
 pub mod config;
 pub mod consts;
 pub mod genkey;
-pub mod hermod;
 pub mod host;
 pub mod identity;
 pub mod message;
