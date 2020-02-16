@@ -71,7 +71,7 @@ impl<'builder> ClientConfigBuilder<'builder> {
         }
     }
 
-    pub fn compresison(mut self, compression: bool) -> Self {
+    pub fn compression(mut self, compression: bool) -> Self {
         self.compression = Some(compression);
         self
     }
@@ -91,7 +91,7 @@ impl<'builder> ClientConfigBuilder<'builder> {
         self
     }
 
-    pub fn build(&self) -> ClientConfig {
+    pub fn build_config(&self) -> ClientConfig {
         let compression = self.compression.unwrap_or(false);
         let source = self.source.expect("No source file specified");
         let destination = self.destination.expect("No destination specified");
