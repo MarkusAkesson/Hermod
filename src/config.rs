@@ -1,5 +1,6 @@
 use crate::consts::SERVER_PRIVATE_KEY_FILE;
 use crate::consts::SERVER_PUBLIC_KEY_FILE;
+use crate::host::Host;
 use crate::request::RequestMethod;
 
 use std::fs::File;
@@ -24,10 +25,7 @@ pub struct ServerConfig {
 }
 
 pub struct ClientConfigBuilder<'builder> {
-    public_key: &'builder [u8],
-    private_key: &'builder [u8],
-    hostname: &'builder str,
-    id_token: &'builder str,
+    host: &'builder Host,
     compression: Option<bool>,
     pub source: Option<&'builder str>,
     pub destination: Option<&'builder str>,
@@ -35,10 +33,7 @@ pub struct ClientConfigBuilder<'builder> {
 }
 
 pub struct ClientConfig<'builder> {
-    public_key: &'builder [u8],
-    private_key: &'builder [u8],
-    hostname: &'builder str,
-    id_token: &'builder str,
+    host: &'builder Host,
     compression: bool,
     pub source: &'builder str,
     pub destination: &'builder str,
@@ -57,26 +52,18 @@ impl Config<'_> for ServerConfig {
 
 impl<'builder> Config<'builder> for ClientConfig<'builder> {
     fn get_private_key(&self) -> &[u8] {
-        &self.private_key
+        &self.host.private_key()
     }
 
     fn get_public_key(&self) -> &[u8] {
-        &self.public_key
+        &self.host.server_key()
     }
 }
 
 impl<'builder> ClientConfigBuilder<'builder> {
-    pub fn new(
-        public_key: &'builder [u8],
-        private_key: &'builder [u8],
-        hostname: &'builder str,
-        id_token: &'builder str,
-    ) -> Self {
+    pub fn new(host: &'builder Host) -> Self {
         ClientConfigBuilder {
-            public_key,
-            private_key,
-            hostname,
-            id_token,
+            host,
             compression: None,
             source: None,
             destination: None,
@@ -110,16 +97,7 @@ impl<'builder> ClientConfigBuilder<'builder> {
         let destination = self.destination.expect("No destination specified");
         let request = self.request.expect("No request method specified");
 
-        ClientConfig::new(
-            self.public_key,
-            self.private_key,
-            self.hostname,
-            self.id_token,
-            compression,
-            source,
-            destination,
-            request,
-        )
+        ClientConfig::new(self.host, compression, source, destination, request)
     }
 }
 
@@ -148,20 +126,14 @@ impl ServerConfig {
 
 impl<'builder> ClientConfig<'builder> {
     pub fn new(
-        public_key: &'builder [u8],
-        private_key: &'builder [u8],
-        hostname: &'builder str,
-        id_token: &'builder str,
+        host: &'builder Host,
         compression: bool,
         source: &'builder str,
         destination: &'builder str,
         request: RequestMethod,
     ) -> Self {
         ClientConfig {
-            public_key,
-            private_key,
-            hostname,
-            id_token,
+            host,
             compression,
             source,
             destination,
@@ -170,6 +142,6 @@ impl<'builder> ClientConfig<'builder> {
     }
 
     pub fn get_hostname(&self) -> &str {
-        &self.hostname
+        &self.host.hostname()
     }
 }
