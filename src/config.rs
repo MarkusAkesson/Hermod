@@ -6,6 +6,7 @@ use crate::request::RequestMethod;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
+use std::path::PathBuf;
 
 use lazy_static::lazy_static;
 
@@ -56,7 +57,7 @@ impl<'builder> Config<'builder> for ClientConfig<'builder> {
     }
 
     fn get_public_key(&self) -> &[u8] {
-        &self.host.server_key()
+        &self.host.public_key()
     }
 }
 
@@ -103,19 +104,25 @@ impl<'builder> ClientConfigBuilder<'builder> {
 
 impl ServerConfig {
     pub fn new() -> Self {
-        let mut private_key = Vec::new();
-        let mut public_key = Vec::new();
+        let mut public_key = Vec::with_capacity(44);
+        let mut private_key = Vec::with_capacity(44);
 
         let read_file = |buffer: &mut Vec<u8>, file_name: &str| -> io::Result<()> {
-            let mut f = File::open(file_name)?;
+            let mut path = PathBuf::new();
+            path.push(dirs::home_dir().unwrap());
+            path.push(file_name);
+            let mut f = File::open(path)?;
             f.read_to_end(buffer)?;
             Ok(())
         };
 
-        read_file(&mut private_key, SERVER_PRIVATE_KEY_FILE)
-            .expect("Failed to read servers private key");
         read_file(&mut public_key, SERVER_PUBLIC_KEY_FILE)
             .expect("Failed to read servers public key");
+        read_file(&mut private_key, SERVER_PRIVATE_KEY_FILE)
+            .expect("Failed to read servers private key");
+
+        let public_key = base64::decode(&public_key).unwrap();
+        let private_key = base64::decode(&private_key).unwrap();
 
         ServerConfig {
             public_key,
@@ -143,5 +150,9 @@ impl<'builder> ClientConfig<'builder> {
 
     pub fn get_hostname(&self) -> &str {
         &self.host.hostname()
+    }
+
+    pub fn get_alias(&self) -> &str {
+        &self.host.alias()
     }
 }

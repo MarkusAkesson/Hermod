@@ -60,7 +60,7 @@ fn gen_key(args: &clap::ArgMatches) {
     let keys = hermod::genkey::gen_keys().unwrap();
     let private_key = keys.private;
     let public_key = keys.public;
-    let id_token = String::new();
+    let id_token = hermod::genkey::gen_idtoken();
 
     let alias = args.value_of("alias").expect("No alias provided, aborting");
 
