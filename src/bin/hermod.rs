@@ -20,45 +20,52 @@ fn start_server(args: &clap::ArgMatches) {
     match args.subcommand() {
         ("init", Some(_)) => {
             hermod::genkey::gen_server_keys().unwrap();
-            return;
         }
         ("list", Some(_)) => {
             HermodServer::list_known_clients();
-            return;
         }
-        _ => {}
+        _ => {
+            // Treat all other cases as wanting to run the server, ugly solution
+            // TODO: make nice
+            HermodServer::run_server();
+        }
     }
-    async_std::task::block_on(async {
-        HermodServer::run_server().await;
-    });
 }
 
 fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
     let host = hermod::host::load_host(args.value_of("remote").unwrap()).unwrap();
     let source = args
         .value_of("source")
-        .expect("Obligatory argument 'source' missing");
+        .expect("Obligatory argument 'source' missing, aborting");
     let destination = args
         .value_of("destination")
-        .expect("Obligatory argument 'destination' missing");
+        .expect("Obligatory argument 'destination' missing, aborting");
     let compression = args.is_present("compression");
 
-    let builder = ClientConfigBuilder::new(&host)
+    let cfg_builder = ClientConfigBuilder::new(&host)
         .source(source)
         .destination(destination)
         .compression(compression)
         .request(method);
 
-    let cfg = builder.build_config();
+    let cfg = cfg_builder.build_config();
 
-    async_std::task::block_on(async {
-        hermod::client::HermodClient::new(cfg).execute().await;
-    });
+    hermod::client::HermodClient::new(cfg).execute();
 }
 
 fn gen_key() {
     let keys = hermod::genkey::gen_keys().unwrap();
-    let id_token = 5;
+    let private_key = keys.private;
+    let public_key = keys.public;
+    let id_token = String::new();
+
+    let host = hermod::host::Host::new()
+        .set_id_token(&id_token)
+        .set_public_key(&public_key)
+        .set_private_key(&private_key);
+
+    host.write_to_file().unwrap();
+    println!("{}", host);
 }
 
 fn share_key(args: &clap::ArgMatches) {
