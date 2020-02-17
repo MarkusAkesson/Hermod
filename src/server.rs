@@ -35,8 +35,10 @@ impl<'hs> HermodServer {
 
     pub fn setup() {
         let keys = genkey::create_server_keys().unwrap();
+
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
-            let mut file = File::create(filepath).unwrap();
+            println!("{}", filepath);
+            let mut file = File::open(filepath).unwrap();
             file.write_all(base64::encode(key).as_bytes())?;
             Ok(())
         };
