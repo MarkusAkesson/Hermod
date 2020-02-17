@@ -21,7 +21,7 @@ pub struct HermodServer {}
 impl<'hs> HermodServer {
     pub fn run_server() {
         async_std::task::block_on(async {
-            let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+            let listener: TcpListener = TcpListener::bind("127.0.0.1:4444").await.unwrap();
             println!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener.incoming();
@@ -38,11 +38,9 @@ impl<'hs> HermodServer {
         let keys = genkey::create_server_keys().unwrap();
 
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
-            println!("{}", filepath);
             let mut path = PathBuf::new();
             path.push(dirs::home_dir().unwrap());
             path.push(filepath);
-            println!("{:?}", path);
             let mut file = File::create(path).unwrap();
             file.write_all(base64::encode(key).as_bytes())?;
             Ok(())
@@ -60,14 +58,17 @@ impl<'hs> HermodServer {
 async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
 
-    // TODO: Clenaup
-    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN];
+    // TODO: Clean up
+    // 13 = tokenid base64len +  MessageType
+    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN + 13];
     stream.read_exact(&mut buffer).await.unwrap();
     let msg = Message::new(MessageType::from(buffer[0]), &buffer[1..]);
 
     let peer = match msg.get_type() {
-        MessageType::Init => Peer::new_client_peer(&str::from_utf8(msg.get_payload()).unwrap()),
-        _ => unimplemented!(), // Received unexpected message, log and drop connection
+        MessageType::Init => {
+            Peer::new_client_peer(&str::from_utf8(&msg.get_payload()[0..12]).unwrap())
+        }
+        _ => unimplemented!(),
     };
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await;

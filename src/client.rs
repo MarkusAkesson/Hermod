@@ -20,7 +20,7 @@ impl<'hc> HermodClient<'hc> {
             let mut stream = TcpStream::connect(self.config.get_hostname())
                 .await
                 .unwrap();
-            let peer = Peer::new_server_peer(self.config.get_hostname());
+            let peer = Peer::new_server_peer(self.config.get_alias());
             // Conduct noise handshake
             let mut endpoint = Endpoint::client(&mut stream, peer, &self.config).await;
             // Execute the request

@@ -29,11 +29,12 @@ impl<'cfg> NoiseStream {
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, snow::error::Error> {
+        println!("{}", config.get_private_key().len());
+        println!("{}", peer.get_public_key().len());
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
             .build_initiator()?;
-
         client_handshake(stream, &mut noise, peer.get_id().as_bytes()).await?;
 
         let noise = noise.into_transport_mode()?;
@@ -50,6 +51,8 @@ impl<'cfg> NoiseStream {
         stream: &mut TcpStream,
         message: &Message,
     ) -> Result<Self, snow::error::Error> {
+        println!("{}", config.get_private_key().len());
+        println!("{}", peer.get_public_key().len());
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
@@ -84,7 +87,7 @@ impl<'cfg> NoiseStream {
     }
 
     pub async fn recv(&mut self) -> Message {
-        let mut msg_type = vec![0u8, MSG_HEADER_LEN as u8];
+        let mut msg_type = vec![0u8; MSG_HEADER_LEN];
         self.stream.read_exact(&mut msg_type).await.unwrap();
         let mut length = [0u8, MSG_LENGTH_LEN as u8];
         self.stream.read_exact(&mut length).await.unwrap();
@@ -103,18 +106,22 @@ async fn client_handshake(
     hs: &mut HandshakeState,
     token: &[u8],
 ) -> Result<(), snow::error::Error> {
-    let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
-    let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
+    let mut init_buffer = vec![0u8; 64];
 
-    hs.write_message(&[], &mut init_buffer)?;
+    let len = hs
+        .write_message(&[], &mut init_buffer)
+        .expect("Failed to encrypt");
 
     stream.write_all(&[MessageType::Init as u8]).await.unwrap();
     stream.write_all(token).await.unwrap();
-    stream.write_all(&init_buffer).await.unwrap();
+    stream.write_all(&init_buffer[..len]).await.unwrap();
 
-    let mut read_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
+    let mut read_buffer = vec![0u8; HERMOD_HS_RESP_LEN + MSG_TYPE_LEN];
+    let mut resp_buffer = vec![0u8; HERMOD_HS_RESP_LEN];
+    println!("HERE");
     stream.read_exact(&mut read_buffer).await.unwrap();
-    hs.read_message(&read_buffer, &mut resp_buffer)?;
+    hs.read_message(&read_buffer[MSG_TYPE_LEN..], &mut resp_buffer)?;
+    println!("DONE");
     Ok(())
 }
 
@@ -123,12 +130,17 @@ async fn server_handshake(
     hs: &mut HandshakeState,
     msg: &Message,
 ) -> Result<(), snow::error::Error> {
-    let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
-    let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
+    let mut init_buffer = vec![0u8; HERMOD_HS_INIT_LEN];
+    let mut resp_buffer = vec![0u8; 64];
 
     hs.read_message(&msg.get_payload(), &mut init_buffer)?;
 
-    hs.write_message(&[], &mut resp_buffer)?;
-    stream.write_all(&init_buffer).await.unwrap();
+    let len = hs.write_message(&[], &mut resp_buffer)?;
+    stream
+        .write_all(&[MessageType::Response as u8])
+        .await
+        .unwrap();
+    stream.write_all(&resp_buffer[..len]).await.unwrap();
+    println!("DONE");
     Ok(())
 }

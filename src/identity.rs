@@ -53,7 +53,7 @@ impl Client {
             let line_content: Vec<&str> = line.split(":").collect();
 
             let id_token = line_content[0];
-            let client_key = Vec::from(line_content[1]);
+            let client_key = base64::decode(line_content[1].as_bytes()).unwrap();
 
             clients.insert(
                 id_token.to_string(),

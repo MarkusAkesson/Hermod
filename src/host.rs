@@ -60,6 +60,10 @@ impl Host {
         self
     }
 
+    pub fn alias(&self) -> &str {
+        &self.alias
+    }
+
     pub fn hostname(&self) -> &str {
         &self.hostname
     }
@@ -86,16 +90,14 @@ impl Host {
         path.push(HOST_DIR);
         path.push(&self.alias);
 
-        println!("Path: {:?}", path);
-
         let file = File::create(path).unwrap();
         let mut writer = BufWriter::new(file);
-        writer.write(format!("Hostname: {}", &self.hostname).as_bytes())?;
-        writer.write(format!("Publickey: {}", base64::encode(&self.public_key)).as_bytes())?;
-        writer.write(format!("PrivateKey: {}", base64::encode(&self.private_key)).as_bytes())?;
-        writer.write(format!("IdToken: {}", &self.id_token).as_bytes())?;
-        writer.write(format!("ServerKey: {}", base64::encode(&self.server_key)).as_bytes())?;
-        unimplemented!();
+        writer.write(format!("Hostname: {}\n", &self.hostname).as_bytes())?;
+        writer.write(format!("Publickey: {}\n", base64::encode(&self.public_key)).as_bytes())?;
+        writer.write(format!("PrivateKey: {}\n", base64::encode(&self.private_key)).as_bytes())?;
+        writer.write(format!("IdToken: {}\n", &self.id_token).as_bytes())?;
+        writer.write(format!("ServerKey: {}\n", base64::encode(&self.server_key)).as_bytes())?;
+        Ok(())
     }
 }
 
@@ -113,15 +115,16 @@ pub fn load_host(alias: &str) -> Result<Host, &'static str> {
     for line in reader.lines() {
         let line = line.unwrap();
 
-        // Split at whitespace and compare key: instead?
-        let parts: Vec<&str> = line.split(":").collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
+
+        // TODO: remove ':'
         host = match parts[0] {
-            "PublicKey" => host.set_public_key(&base64::decode(parts[1]).unwrap()),
-            "PrivateKey" => host.set_private_key(&base64::decode(parts[1]).unwrap()),
-            "Hostname" => host.set_hostname(parts[1]),
-            "ID_Token" => host.set_id_token(parts[1]),
-            "ServerKey" => host.set_server_key(&base64::decode(parts[1]).unwrap()),
-            _ => host, // Unknown filed
+            "PublicKey:" => host.set_public_key(&base64::decode(parts[1]).unwrap()),
+            "PrivateKey:" => host.set_private_key(&base64::decode(parts[1]).unwrap()),
+            "Hostname:" => host.set_hostname(parts[1]),
+            "IdToken:" => host.set_id_token(parts[1]),
+            "ServerKey:" => host.set_server_key(&base64::decode(parts[1]).unwrap()),
+            _ => host,
         };
     }
     Ok(host)
