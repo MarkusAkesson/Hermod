@@ -27,7 +27,7 @@ fn start_server(args: &clap::ArgMatches) {
         }
         _ => {
             // Treat all other cases as wanting to run the server
-            // TODO: make nicer
+            // TODO: Make nicer
             println!("Preparing to run the server");
             HermodServer::run_server();
         }
