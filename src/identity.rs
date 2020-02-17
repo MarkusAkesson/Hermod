@@ -3,13 +3,12 @@ use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufReader, BufWriter};
-use std::path::Path;
+use std::path::PathBuf;
 
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref KNOWN_CLIENTS: HashMap<String, Client> =
-        Client::load_clients(Path::new("/home/markus/.hermod/authorized_clients"));
+    pub static ref KNOWN_CLIENTS: HashMap<String, Client> = Client::load_clients();
 }
 
 pub struct Client {
@@ -39,7 +38,11 @@ impl Client {
         &self.id_token
     }
 
-    pub fn load_clients(path: &Path) -> HashMap<String, Client> {
+    pub fn load_clients() -> HashMap<String, Client> {
+        let mut path = PathBuf::new();
+        path.push(dirs::home_dir().unwrap());
+        path.push(".hermod/authorized_clients");
+
         let file = File::open(path).expect("Failed to open authorized_clients file");
         let lines = BufReader::new(file).lines();
 
