@@ -1,10 +1,13 @@
 use crate::consts::*;
+use crate::genkey;
 use crate::identity;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;
 
+use std::fs::File;
+use std::io::prelude::*;
 use std::str;
 
 use async_std::io;
@@ -28,6 +31,18 @@ impl<'hs> HermodServer {
                 });
             }
         });
+    }
+
+    pub fn setup() {
+        let keys = genkey::create_server_keys().unwrap();
+        let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
+            let mut file = File::create(filepath).unwrap();
+            file.write_all(base64::encode(key).as_bytes())?;
+            Ok(())
+        };
+
+        write_to_file(&keys.private, SERVER_PRIVATE_KEY_FILE).unwrap();
+        write_to_file(&keys.public, SERVER_PUBLIC_KEY_FILE).unwrap();
     }
 
     pub fn list_known_clients() {

@@ -19,7 +19,7 @@ fn main() {
 fn start_server(args: &clap::ArgMatches) {
     match args.subcommand() {
         ("init", Some(_)) => {
-            hermod::genkey::gen_server_keys().unwrap();
+            HermodServer::setup();
         }
         ("list", Some(_)) => {
             HermodServer::list_known_clients();
@@ -68,9 +68,6 @@ fn gen_key(args: &clap::ArgMatches) {
 
     println!("{}", host);
 
-    if host.hostname().is_empty() {
-        return;
-    }
     host.write_to_file().unwrap();
 }
 
