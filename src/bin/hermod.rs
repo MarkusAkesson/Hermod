@@ -1,5 +1,5 @@
 use hermod::cli;
-use hermod::config::{ClientConfig, ClientConfigBuilder, ServerConfig};
+use hermod::config::ClientConfigBuilder;
 use hermod::request::RequestMethod;
 use hermod::server::HermodServer;
 
@@ -18,7 +18,8 @@ fn main() {
 
 fn start_server(args: &clap::ArgMatches) {
     match args.subcommand() {
-        ("init", Some(_)) => {
+        ("setup", Some(_)) => {
+            println!("Genereting new static files for the server...");
             HermodServer::setup();
         }
         ("list", Some(_)) => {
@@ -27,6 +28,7 @@ fn start_server(args: &clap::ArgMatches) {
         _ => {
             // Treat all other cases as wanting to run the server
             // TODO: make nicer
+            println!("Preparing to run the server");
             HermodServer::run_server();
         }
     }
@@ -54,12 +56,13 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 }
 
 fn gen_key(args: &clap::ArgMatches) {
+    println!("Generating a new static keypair and a new identification token...");
     let keys = hermod::genkey::gen_keys().unwrap();
     let private_key = keys.private;
     let public_key = keys.public;
     let id_token = String::new();
 
-    let alias = args.value_of("alias").unwrap();
+    let alias = args.value_of("alias").expect("No alias provided, aborting");
 
     let host = hermod::host::Host::with_alias(&alias)
         .set_id_token(&id_token)
