@@ -10,7 +10,7 @@ fn main() {
         ("server", Some(server_args)) => start_server(&server_args),
         ("upload", Some(req_args)) => exec_request(&req_args, RequestMethod::Upload),
         ("download", Some(req_args)) => exec_request(&req_args, RequestMethod::Download),
-        ("gen-key", Some(_)) => gen_key(),
+        ("gen-key", Some(gen_args)) => gen_key(&gen_args),
         ("share-key", Some(sk_args)) => share_key(&sk_args),
         _ => {}
     }
@@ -25,8 +25,8 @@ fn start_server(args: &clap::ArgMatches) {
             HermodServer::list_known_clients();
         }
         _ => {
-            // Treat all other cases as wanting to run the server, ugly solution
-            // TODO: make nice
+            // Treat all other cases as wanting to run the server
+            // TODO: make nicer
             HermodServer::run_server();
         }
     }
@@ -53,19 +53,25 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
     hermod::client::HermodClient::new(cfg).execute();
 }
 
-fn gen_key() {
+fn gen_key(args: &clap::ArgMatches) {
     let keys = hermod::genkey::gen_keys().unwrap();
     let private_key = keys.private;
     let public_key = keys.public;
     let id_token = String::new();
 
-    let host = hermod::host::Host::new()
+    let alias = args.value_of("alias").unwrap();
+
+    let host = hermod::host::Host::with_alias(&alias)
         .set_id_token(&id_token)
         .set_public_key(&public_key)
         .set_private_key(&private_key);
 
-    host.write_to_file().unwrap();
     println!("{}", host);
+
+    if host.hostname().is_empty() {
+        return;
+    }
+    host.write_to_file().unwrap();
 }
 
 fn share_key(args: &clap::ArgMatches) {

@@ -1,11 +1,13 @@
 use std::fmt;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::prelude::*;
+use std::io::{self, BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 
-static HOST_DIR: &str = "~/.hermod/known_hosts/";
+static HOST_DIR: &str = "~/.hermod/known_hosts";
 
 pub struct Host {
+    pub alias: String,
     pub hostname: String,
     pub id_token: String,
     pub public_key: Vec<u8>,
@@ -15,16 +17,16 @@ pub struct Host {
 
 impl fmt::Display for Host {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\n", self.hostname)?;
+        write!(f, "{}\n", self.alias)?;
         write!(f, "\tPublicKey: {}\n", base64::encode(&self.public_key))?;
-        write!(f, "\tServerKey: {}\n", base64::encode(&self.private_key))?;
         write!(f, "\tIdToken: {}\n", base64::encode(&self.id_token))
     }
 }
 
 impl Host {
-    pub fn new() -> Self {
+    pub fn with_alias(alias: &str) -> Self {
         Host {
+            alias: String::from(alias),
             hostname: String::new(),
             id_token: String::new(),
             public_key: Vec::new(),
@@ -79,19 +81,32 @@ impl Host {
     }
 
     pub fn write_to_file(&self) -> io::Result<()> {
+        let mut path = PathBuf::new();
+        path.push(HOST_DIR);
+        path.push(&self.alias);
+
+        println!("Path: {:?}", path);
+
+        let file = File::create(path).unwrap();
+        let mut writer = BufWriter::new(file);
+        writer.write(format!("Hostname: {}", &self.hostname).as_bytes())?;
+        writer.write(format!("Publickey: {}", base64::encode(&self.public_key)).as_bytes())?;
+        writer.write(format!("PrivateKey: {}", base64::encode(&self.private_key)).as_bytes())?;
+        writer.write(format!("IdToken: {}", &self.id_token).as_bytes())?;
+        writer.write(format!("ServerKey: {}", base64::encode(&self.server_key)).as_bytes())?;
         unimplemented!();
     }
 }
 
-pub fn load_host(hostname: &str) -> Result<Host, &'static str> {
+pub fn load_host(alias: &str) -> Result<Host, &'static str> {
     let mut path = PathBuf::new();
     path.push(HOST_DIR);
-    path.push(hostname);
+    path.push(alias);
 
     let file = File::open(path).unwrap();
     let reader = BufReader::new(file);
 
-    let mut host = Host::new();
+    let mut host = Host::with_alias(alias);
 
     for line in reader.lines() {
         let line = line.unwrap();
