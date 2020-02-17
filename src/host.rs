@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, BufWriter};
 use std::path::PathBuf;
 
-static HOST_DIR: &str = "~/.hermod/known_hosts";
+static HOST_DIR: &str = ".hermod/known_hosts";
 
 pub struct Host {
     pub alias: String,
@@ -82,6 +82,7 @@ impl Host {
 
     pub fn write_to_file(&self) -> io::Result<()> {
         let mut path = PathBuf::new();
+        path.push(dirs::home_dir().unwrap());
         path.push(HOST_DIR);
         path.push(&self.alias);
 
@@ -100,6 +101,7 @@ impl Host {
 
 pub fn load_host(alias: &str) -> Result<Host, &'static str> {
     let mut path = PathBuf::new();
+    path.push(dirs::home_dir().unwrap());
     path.push(HOST_DIR);
     path.push(alias);
 

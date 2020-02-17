@@ -8,6 +8,7 @@ use crate::request::Request;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 use std::str;
 
 use async_std::io;
@@ -38,7 +39,11 @@ impl<'hs> HermodServer {
 
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
             println!("{}", filepath);
-            let mut file = File::open(filepath).unwrap();
+            let mut path = PathBuf::new();
+            path.push(dirs::home_dir().unwrap());
+            path.push(filepath);
+            println!("{:?}", path);
+            let mut file = File::create(path).unwrap();
             file.write_all(base64::encode(key).as_bytes())?;
             Ok(())
         };
@@ -51,6 +56,7 @@ impl<'hs> HermodServer {
         identity::print_known_clients();
     }
 }
+
 async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     // log incomming packet from ip
 
