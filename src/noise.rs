@@ -29,8 +29,9 @@ impl<'cfg> NoiseStream {
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, snow::error::Error> {
-        println!("{}", config.get_private_key().len());
-        println!("{}", peer.get_public_key().len());
+        println!("{:?}", config.get_private_key());
+        println!("{:?}", config.get_public_key());
+        println!("{:?}", peer.get_public_key());
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
@@ -51,8 +52,9 @@ impl<'cfg> NoiseStream {
         stream: &mut TcpStream,
         message: &Message,
     ) -> Result<Self, snow::error::Error> {
-        println!("{}", config.get_private_key().len());
-        println!("{}", peer.get_public_key().len());
+        println!("{:?}", config.get_private_key());
+        println!("{:?}", config.get_public_key());
+        println!("{:?}", peer.get_public_key());
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
@@ -118,8 +120,8 @@ async fn client_handshake(
 
     let mut read_buffer = vec![0u8; HERMOD_HS_RESP_LEN + MSG_TYPE_LEN];
     let mut resp_buffer = vec![0u8; HERMOD_HS_RESP_LEN];
-    println!("HERE");
     stream.read_exact(&mut read_buffer).await.unwrap();
+    println!("HERE");
     hs.read_message(&read_buffer[MSG_TYPE_LEN..], &mut resp_buffer)?;
     println!("DONE");
     Ok(())
