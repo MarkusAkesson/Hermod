@@ -93,7 +93,7 @@ impl Host {
         let file = File::create(path).unwrap();
         let mut writer = BufWriter::new(file);
         writer.write(format!("Hostname: {}\n", &self.hostname).as_bytes())?;
-        writer.write(format!("Publickey: {}\n", base64::encode(&self.public_key)).as_bytes())?;
+        writer.write(format!("PublicKey: {}\n", base64::encode(&self.public_key)).as_bytes())?;
         writer.write(format!("PrivateKey: {}\n", base64::encode(&self.private_key)).as_bytes())?;
         writer.write(format!("IdToken: {}\n", &self.id_token).as_bytes())?;
         writer.write(format!("ServerKey: {}\n", base64::encode(&self.server_key)).as_bytes())?;
