@@ -128,7 +128,7 @@ async fn server_handshake(
 
     hs.read_message(&msg.get_payload(), &mut init_buffer)?;
 
-    let msg_len = hs.write_message(&[], &mut resp_buffer)?;
+    hs.write_message(&[], &mut resp_buffer)?;
     stream.write_all(&init_buffer).await.unwrap();
     Ok(())
 }
