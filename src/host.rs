@@ -1,8 +1,7 @@
+use std::fmt;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader};
 use std::path::PathBuf;
-
-use base64::decode;
 
 static HOST_DIR: &str = "~/.hermod/known_hosts/";
 
@@ -12,6 +11,15 @@ pub struct Host {
     pub public_key: Vec<u8>,
     pub private_key: Vec<u8>,
     pub server_key: Vec<u8>,
+}
+
+impl fmt::Display for Host {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}\n", self.hostname)?;
+        write!(f, "\tPublicKey: {}\n", base64::encode(&self.public_key))?;
+        write!(f, "\tServerKey: {}\n", base64::encode(&self.private_key))?;
+        write!(f, "\tIdToken: {}\n", base64::encode(&self.id_token))
+    }
 }
 
 impl Host {
@@ -25,24 +33,29 @@ impl Host {
         }
     }
 
-    pub fn set_hostname(&mut self, hostname: &str) {
+    pub fn set_hostname(mut self, hostname: &str) -> Self {
         self.hostname.push_str(hostname);
+        self
     }
 
-    pub fn set_id_token(&mut self, id: &str) {
+    pub fn set_id_token(mut self, id: &str) -> Self {
         self.id_token.push_str(id);
+        self
     }
 
-    pub fn set_public_key(&mut self, key: &[u8]) {
+    pub fn set_public_key(mut self, key: &[u8]) -> Self {
         self.public_key.extend(key);
+        self
     }
 
-    pub fn set_private_key(&mut self, key: &[u8]) {
+    pub fn set_private_key(mut self, key: &[u8]) -> Self {
         self.private_key.extend(key);
+        self
     }
 
-    pub fn set_server_key(&mut self, key: &[u8]) {
+    pub fn set_server_key(mut self, key: &[u8]) -> Self {
         self.server_key.extend(key);
+        self
     }
 
     pub fn hostname(&self) -> &str {
@@ -64,6 +77,10 @@ impl Host {
     pub fn server_key(&self) -> &[u8] {
         &self.server_key
     }
+
+    pub fn write_to_file(&self) -> io::Result<()> {
+        unimplemented!();
+    }
 }
 
 pub fn load_host(hostname: &str) -> Result<Host, &'static str> {
@@ -81,14 +98,14 @@ pub fn load_host(hostname: &str) -> Result<Host, &'static str> {
 
         // Split at whitespace and compare key: instead?
         let parts: Vec<&str> = line.split(":").collect();
-        match parts[0] {
+        host = match parts[0] {
             "PublicKey" => host.set_public_key(&base64::decode(parts[1]).unwrap()),
             "PrivateKey" => host.set_private_key(&base64::decode(parts[1]).unwrap()),
             "Hostname" => host.set_hostname(parts[1]),
             "ID_Token" => host.set_id_token(parts[1]),
             "ServerKey" => host.set_server_key(&base64::decode(parts[1]).unwrap()),
-            _ => {} // Unknown filed
-        }
+            _ => host, // Unknown filed
+        };
     }
     Ok(host)
 }

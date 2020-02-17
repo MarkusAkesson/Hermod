@@ -15,17 +15,19 @@ use async_std::task;
 pub struct HermodServer {}
 
 impl<'hs> HermodServer {
-    pub async fn run_server() {
-        let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
-        println!("Listening on {}", listener.local_addr().unwrap());
+    pub fn run_server() {
+        async_std::task::block_on(async {
+            let listener: TcpListener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+            println!("Listening on {}", listener.local_addr().unwrap());
 
-        let mut incoming = listener.incoming();
-        while let Some(stream) = incoming.next().await {
-            task::spawn(async {
-                let mut stream = stream.unwrap();
-                handle_connection(&mut stream).await.unwrap();
-            });
-        }
+            let mut incoming = listener.incoming();
+            while let Some(stream) = incoming.next().await {
+                task::spawn(async {
+                    let mut stream = stream.unwrap();
+                    handle_connection(&mut stream).await.unwrap();
+                });
+            }
+        });
     }
 
     pub fn list_known_clients() {
