@@ -1,5 +1,5 @@
 use crate::config::{ClientConfig, SERVER_CONFIG};
-use crate::host::Host;
+use crate::host::{self, Host};
 use crate::identity::{Client, KNOWN_CLIENTS};
 use crate::message::Message;
 use crate::noise::NoiseStream;
@@ -12,8 +12,9 @@ pub enum Peer {
 }
 
 impl Peer {
-    pub fn new_server_peer(hostname: &str) -> Self {
-        unimplemented!()
+    pub fn new_server_peer(alias: &str) -> Self {
+        let host = host::load_host(alias).unwrap();
+        Peer::Host(host)
     }
 
     pub fn new_client_peer(id_token: &str) -> Self {

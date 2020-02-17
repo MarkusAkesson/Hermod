@@ -106,7 +106,7 @@ async fn client_handshake(
     let mut init_buffer = vec![0u8, HERMOD_HS_INIT_LEN as u8];
     let mut resp_buffer = vec![0u8, HERMOD_HS_RESP_LEN as u8];
 
-    let msg_len = hs.write_message(&[], &mut init_buffer)?;
+    hs.write_message(&[], &mut init_buffer)?;
 
     stream.write_all(&[MessageType::Init as u8]).await.unwrap();
     stream.write_all(token).await.unwrap();
