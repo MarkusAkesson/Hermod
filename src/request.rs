@@ -2,6 +2,9 @@ use crate::config::ClientConfig;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
+use std::fs;
+use std::path::PathBuf;
+
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
 use async_std::prelude::*;
@@ -37,6 +40,11 @@ impl<'a> Request<'a> {
     }
 
     pub async fn exec(&self, endpoint: &mut Endpoint) {
+        // TODO: move out of exec
+        let enc_req = bincode::serialize(&self).unwrap();
+        let msg = Message::new(MessageType::Request, &enc_req);
+        endpoint.send(&msg).await;
+        println!("Sending request");
         match self.method {
             RequestMethod::Upload => self.upload(endpoint).await,
             RequestMethod::Download => self.download(endpoint).await,
@@ -45,7 +53,9 @@ impl<'a> Request<'a> {
 
     // read a file and send it to a task responsible for sending the msg to peer
     async fn upload(&self, endpoint: &mut Endpoint) {
-        let file = File::open(self.source).await.unwrap();
+        let path = PathBuf::from(self.source);
+        println!("{:?}", fs::metadata(&path).unwrap());
+        let file = File::open(path).await.unwrap();
         let mut buf_reader = BufReader::new(file);
 
         let (tx, rx) = async_std::sync::channel(100);
@@ -63,8 +73,12 @@ impl<'a> Request<'a> {
                     .unwrap();
                 if n == 0 {
                     // EOF reached
+                    println!("EOF reached");
                     let msg = Message::new(MessageType::EOF, &[]);
                     tx.send(msg).await;
+                    let msg = Message::new(MessageType::Close, &[]);
+                    tx.send(msg).await;
+
                     break;
                 }
                 let msg = Message::new(MessageType::Payload, &buffer);
@@ -72,12 +86,17 @@ impl<'a> Request<'a> {
             }
         });
         while let Some(msg) = rx.recv().await {
+            println!("sending file data");
             endpoint.send(&msg).await;
         }
     }
 
     async fn download(&self, endpoint: &mut Endpoint) {
-        let file = File::create(self.destination).await.unwrap();
+        let mut path = PathBuf::new();
+        path.push(self.destination);
+        path.push(self.source);
+
+        let file = File::create(path).await.unwrap();
         let mut buf_writer = BufWriter::new(file);
 
         let (tx, rx): (
@@ -98,6 +117,7 @@ impl<'a> Request<'a> {
                         return;
                     }
                     MessageType::Request
+                    | MessageType::Close
                     | MessageType::Unknown
                     | MessageType::Init
                     | MessageType::Response => return, // log Received message out of order{} type, Closing connection
@@ -111,6 +131,7 @@ impl<'a> Request<'a> {
         // Recv messages until an Error message has been received or the tcp connection is dropped
         loop {
             let msg = endpoint.recv().await;
+            println!("Received new message of type: {}", msg.get_type());
             if msg.get_type() == MessageType::Error {
                 // TODO: Log error
                 break;

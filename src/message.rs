@@ -1,6 +1,7 @@
 use crate::consts::*;
 
 use std::convert::From;
+use std::fmt;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum MessageType {
@@ -10,7 +11,23 @@ pub enum MessageType {
     Payload,
     EOF,
     Error,
+    Close,
     Unknown,
+}
+
+impl fmt::Display for MessageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MessageType::Init => write!(f, "{}", "Init"),
+            MessageType::Response => write!(f, "{}", "Response"),
+            MessageType::Request => write!(f, "{}", "Request"),
+            MessageType::Payload => write!(f, "{}", "Payload"),
+            MessageType::EOF => write!(f, "{}", "EOF"),
+            MessageType::Error => write!(f, "{}", "Error"),
+            MessageType::Close => write!(f, "{}", "Close"),
+            MessageType::Unknown => write!(f, "{}", "Unknown"),
+        }
+    }
 }
 
 impl From<u8> for MessageType {
@@ -21,7 +38,8 @@ impl From<u8> for MessageType {
             0x3 => MessageType::Request,
             0x4 => MessageType::Payload,
             0x5 => MessageType::EOF,
-            0x6 => MessageType::Error,
+            0x6 => MessageType::Close,
+            0x7 => MessageType::Error,
             _ => MessageType::Unknown,
         }
     }
