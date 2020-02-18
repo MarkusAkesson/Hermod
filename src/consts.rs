@@ -3,7 +3,7 @@ pub const MAC_LENGTH: usize = 16;
 
 pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
-pub const MSG_LENGTH_LEN: usize = 2;
+pub const MSG_LENGTH_LEN: usize = 8;
 
 pub const ID_TOKEN_LEN: u8 = 8;
 
