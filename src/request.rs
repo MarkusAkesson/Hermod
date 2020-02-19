@@ -8,6 +8,8 @@ use std::path::PathBuf;
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
 use async_std::prelude::*;
+use async_std::stream;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -54,7 +56,6 @@ impl<'a> Request<'a> {
     // read a file and send it to a task responsible for sending the msg to peer
     async fn upload(&self, endpoint: &mut Endpoint) {
         let path = PathBuf::from(self.source);
-        println!("{:?}", fs::metadata(&path).unwrap());
         let file = File::open(path).await.unwrap();
         let mut buf_reader = BufReader::new(file);
 
@@ -73,20 +74,24 @@ impl<'a> Request<'a> {
                     .unwrap();
                 if n == 0 {
                     // EOF reached
-                    println!("EOF reached");
-                    let msg = Message::new(MessageType::EOF, &[]);
-                    tx.send(msg).await;
-                    let msg = Message::new(MessageType::Close, &[]);
-                    tx.send(msg).await;
+                    // Send EOF and close to remote peer
+                    let msgs = vec![
+                        Message::new(MessageType::EOF, &[]),
+                        Message::new(MessageType::Close, &[]),
+                    ]
+                    .into_iter();
 
+                    for msg in msgs {
+                        tx.send(msg).await;
+                    }
                     break;
                 }
                 let msg = Message::new(MessageType::Payload, &buffer);
                 tx.send(msg).await;
             }
         });
+
         while let Some(msg) = rx.recv().await {
-            println!("sending file data");
             endpoint.send(&msg).await;
         }
     }
@@ -94,7 +99,9 @@ impl<'a> Request<'a> {
     async fn download(&self, endpoint: &mut Endpoint) {
         let mut path = PathBuf::new();
         path.push(self.destination);
-        path.push(self.source);
+        path.push("test2");
+
+        println!("{:?}", path);
 
         let file = File::create(path).await.unwrap();
         let mut buf_writer = BufWriter::new(file);
@@ -124,15 +131,19 @@ impl<'a> Request<'a> {
                 }
                 let payload = msg.get_payload();
                 buf_writer.write(payload).await.unwrap();
+                buf_writer.flush().await.unwrap();
             }
-            buf_writer.flush().await.unwrap();
         });
 
         // Recv messages until an Error message has been received or the tcp connection is dropped
         loop {
             let msg = endpoint.recv().await;
-            println!("Received new message of type: {}", msg.get_type());
             if msg.get_type() == MessageType::Error {
+                // TODO: Log error
+                break;
+            }
+
+            if msg.get_type() == MessageType::Close {
                 // TODO: Log error
                 break;
             }
