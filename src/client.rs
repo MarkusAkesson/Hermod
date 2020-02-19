@@ -4,7 +4,6 @@ use crate::peer::Peer;
 use crate::request::Request;
 
 use async_std::net::TcpStream;
-use async_std::task;
 
 pub struct HermodClient<'hc> {
     config: ClientConfig<'hc>,

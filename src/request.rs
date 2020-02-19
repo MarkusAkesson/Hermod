@@ -2,13 +2,11 @@ use crate::config::ClientConfig;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
 use async_std::prelude::*;
-use async_std::stream;
 
 use serde::{Deserialize, Serialize};
 
