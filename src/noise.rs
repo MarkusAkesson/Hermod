@@ -102,17 +102,13 @@ impl<'cfg> NoiseStream {
     pub async fn recv(&mut self) -> Message {
         let mut msg_type = vec![0u8; MSG_TYPE_LEN];
         self.stream.read_exact(&mut msg_type).await.unwrap();
-        println!("{:?}", msg_type);
         let mut length = [0u8; MSG_LENGTH_LEN];
         self.stream.read_exact(&mut length).await.unwrap();
-        println!("{:?}", length);
         let msg_len = usize::from_be_bytes(length) as usize;
-        println!("ciphertext len: {}", msg_len);
         let mut enc_payload = vec![0u8; msg_len];
         self.stream.read_exact(&mut enc_payload).await.unwrap();
         let mut payload = vec![0u8; msg_len - MAC_LENGTH];
         let len = self.noise.read_message(&enc_payload, &mut payload).unwrap();
-        println!("plaintext len: {}", len);
 
         Message::new(MessageType::from(msg_type[0]), &payload)
     }
