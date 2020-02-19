@@ -3,7 +3,7 @@ use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
@@ -19,17 +19,20 @@ pub enum RequestMethod {
 }
 
 #[derive(Eq, PartialEq, Serialize, Deserialize)]
-pub struct Request<'a> {
-    source: &'a str,
-    destination: &'a str,
+pub struct Request {
+    source: PathBuf,
+    destination: PathBuf,
     method: RequestMethod,
 }
 
-impl<'a> Request<'a> {
-    pub fn new(config: &'a ClientConfig) -> Self {
+impl Request {
+    pub fn new(config: &ClientConfig) -> Self {
+        let mut destination = PathBuf::from(config.destination);
+        let source = PathBuf::from(config.source);
+        destination.push(source.file_name().unwrap());
         Request {
-            source: &config.source,
-            destination: &config.destination,
+            source: source,
+            destination: destination,
             method: config.request,
         }
     }
@@ -55,8 +58,7 @@ impl<'a> Request<'a> {
 
     // read a file and send it to a task responsible for sending the msg to peer
     async fn upload(&self, endpoint: &mut Endpoint) {
-        let path = PathBuf::from(self.source);
-        let file = File::open(path).await.unwrap();
+        let file = File::open(&self.source).await.unwrap();
         let mut buf_reader = BufReader::new(file);
 
         let (tx, rx) = async_std::sync::channel(100);
@@ -97,13 +99,9 @@ impl<'a> Request<'a> {
     }
 
     async fn download(&self, endpoint: &mut Endpoint) {
-        let mut path = PathBuf::new();
-        path.push(self.destination);
-        path.push("test2");
+        println!("{:?}", &self.destination);
 
-        println!("{:?}", path);
-
-        let file = File::create(path).await.unwrap();
+        let file = File::create(&self.destination).await.unwrap();
         let mut buf_writer = BufWriter::new(file);
 
         let (tx, rx): (
