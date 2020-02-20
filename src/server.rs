@@ -62,13 +62,13 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
     // TODO: Clean up
     // 13 = tokenid base64len +  MessageType
     let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN + 13];
-    stream.read_exact(&mut buffer).await.unwrap();
+    stream.read_exact(&mut buffer).await?;
     let msg = Message::new(MessageType::from(buffer[0]), &buffer[1..]);
 
     let peer = match msg.get_type() {
-        MessageType::Init => {
-            Peer::new_client_peer(&str::from_utf8(&msg.get_payload()[0..12]).unwrap())
-        }
+        MessageType::Init => Peer::new_client_peer(
+            &str::from_utf8(&msg.get_payload()[0..12]).expect("Init Message contains wrong data"),
+        ),
         _ => return Ok(()),
     };
 
