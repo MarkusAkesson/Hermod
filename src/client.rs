@@ -31,9 +31,21 @@ impl<'hc> HermodClient<'hc> {
                 .unwrap();
             // Execute the request
             let request = Request::new(&self.config);
-            request.exec(&mut endpoint).await;
+            match request.exec(&mut endpoint).await {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{}", e);
+                    return;
+                }
+            };
             let msg = Message::new(MessageType::Close, &[]);
-            endpoint.send(&msg).await;
+            match endpoint.send(&msg).await {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{}", e);
+                    return;
+                }
+            };
         });
     }
 }
