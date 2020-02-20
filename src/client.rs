@@ -17,12 +17,18 @@ impl<'hc> HermodClient<'hc> {
 
     pub fn execute(&self) {
         async_std::task::block_on(async {
-            let mut stream = TcpStream::connect(self.config.get_hostname())
-                .await
-                .unwrap();
+            let mut stream = match TcpStream::connect(self.config.get_hostname()).await {
+                Ok(stream) => stream,
+                Err(e) => {
+                    println!("{}", e);
+                    return;
+                }
+            };
             let peer = Peer::new_server_peer(self.config.get_alias());
             // Conduct noise handshake
-            let mut endpoint = Endpoint::client(&mut stream, peer, &self.config).await;
+            let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
+                .await
+                .unwrap();
             // Execute the request
             let request = Request::new(&self.config);
             request.exec(&mut endpoint).await;

@@ -1,4 +1,5 @@
 use crate::config::{ClientConfig, SERVER_CONFIG};
+use crate::error::HermodError;
 use crate::host::{self, Host};
 use crate::identity::{Client, KNOWN_CLIENTS};
 use crate::message::Message;
@@ -48,20 +49,24 @@ pub struct Endpoint {
 }
 
 impl<'e> Endpoint {
-    pub async fn client(stream: &mut TcpStream, peer: Peer, cfg: &ClientConfig<'e>) -> Self {
-        let stream = NoiseStream::new_initiator(&peer, cfg, stream)
-            .await
-            .unwrap();
+    pub async fn client(
+        stream: &mut TcpStream,
+        peer: Peer,
+        cfg: &ClientConfig<'e>,
+    ) -> Result<Self, HermodError> {
+        let stream = NoiseStream::new_initiator(&peer, cfg, stream).await?;
 
-        Endpoint { peer, stream }
+        Ok(Endpoint { peer, stream })
     }
 
-    pub async fn server(stream: &mut TcpStream, peer: Peer, msg: &Message) -> Self {
-        let stream = NoiseStream::new_responder(&peer, &*SERVER_CONFIG, stream, msg)
-            .await
-            .unwrap();
+    pub async fn server(
+        stream: &mut TcpStream,
+        peer: Peer,
+        msg: &Message,
+    ) -> Result<Self, HermodError> {
+        let stream = NoiseStream::new_responder(&peer, &*SERVER_CONFIG, stream, msg).await?;
 
-        Endpoint { peer, stream }
+        Ok(Endpoint { peer, stream })
     }
 
     pub fn get_stream(&self) -> &TcpStream {
@@ -72,11 +77,11 @@ impl<'e> Endpoint {
         &self.peer
     }
 
-    pub async fn send(&mut self, msg: &Message) {
-        self.stream.send(msg).await;
+    pub async fn send(&mut self, msg: &Message) -> Result<(), HermodError> {
+        self.stream.send(msg).await
     }
 
-    pub async fn recv(&mut self) -> Message {
-        self.stream.recv().await
+    pub async fn recv(&mut self) -> Result<Message, HermodError> {
+        Ok(self.stream.recv().await?)
     }
 }

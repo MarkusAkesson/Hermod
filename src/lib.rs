@@ -2,6 +2,7 @@ pub mod cli;
 pub mod client;
 pub mod config;
 pub mod consts;
+pub mod error;
 pub mod genkey;
 pub mod host;
 pub mod identity;
