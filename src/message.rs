@@ -38,8 +38,8 @@ impl From<u8> for MessageType {
             0x3 => MessageType::Request,
             0x4 => MessageType::Payload,
             0x5 => MessageType::EOF,
-            0x6 => MessageType::Close,
-            0x7 => MessageType::Error,
+            0x6 => MessageType::Error,
+            0x7 => MessageType::Close,
             _ => MessageType::Unknown,
         }
     }
