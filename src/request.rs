@@ -1,4 +1,5 @@
 use crate::config::ClientConfig;
+use crate::error::HermodError;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
@@ -29,20 +30,20 @@ impl Request {
         let source = PathBuf::from(config.source);
         destination.push(source.file_name().unwrap());
         Request {
-            source: source,
-            destination: destination,
+            source,
+            destination,
             method: config.request,
         }
     }
 
-    pub async fn respond(&self, endpoint: &mut Endpoint) {
+    pub async fn respond(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         match self.method {
             RequestMethod::Upload => self.download(endpoint).await,
             RequestMethod::Download => self.upload(endpoint).await,
         }
     }
 
-    pub async fn exec(&self, endpoint: &mut Endpoint) {
+    pub async fn exec(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         // TODO: move out of exec
         let enc_req = bincode::serialize(&self).unwrap();
         let msg = Message::new(MessageType::Request, &enc_req);
@@ -55,8 +56,8 @@ impl Request {
     }
 
     // read a file and send it to a task responsible for sending the msg to peer
-    async fn upload(&self, endpoint: &mut Endpoint) {
-        let file = File::open(&self.source).await.unwrap();
+    async fn upload(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+        let file = File::open(&self.source).await?;
         let mut buf_reader = BufReader::new(file);
 
         let (tx, rx) = async_std::sync::channel(100);
@@ -87,12 +88,14 @@ impl Request {
         while let Some(msg) = rx.recv().await {
             endpoint.send(&msg).await;
         }
+
+        Ok(())
     }
 
-    async fn download(&self, endpoint: &mut Endpoint) {
+    async fn download(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         println!("{:?}", &self.destination);
 
-        let file = File::create(&self.destination).await.unwrap();
+        let file = File::create(&self.destination).await?;
         let mut buf_writer = BufWriter::new(file);
 
         let (tx, rx): (
@@ -126,7 +129,7 @@ impl Request {
 
         // Recv messages until an Error message has been received or the tcp connection is dropped
         loop {
-            let msg = endpoint.recv().await;
+            let msg = endpoint.recv().await?;
             println!("REQUEST: Received new message of type: {}", msg.get_type());
             if msg.get_type() == MessageType::Error {
                 // TODO: Log error
@@ -140,5 +143,7 @@ impl Request {
 
             tx.send(msg).await;
         }
+
+        Ok(())
     }
 }

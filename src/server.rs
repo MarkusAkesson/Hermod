@@ -1,4 +1,5 @@
 use crate::consts::*;
+use crate::error::HermodError;
 use crate::genkey;
 use crate::identity;
 use crate::message::{Message, MessageType};
@@ -55,7 +56,7 @@ impl<'hs> HermodServer {
     }
 }
 
-async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
+async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
     // log incomming packet from ip
 
     // TODO: Clean up
@@ -71,10 +72,16 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
         _ => return Ok(()),
     };
 
-    let mut endpoint = Endpoint::server(stream, peer, &msg).await;
+    let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
 
     loop {
-        let msg = endpoint.recv().await;
+        let msg = match endpoint.recv().await {
+            Ok(msg) => msg,
+            Err(e) => {
+                println!("{}", e);
+                break;
+            }
+        };
 
         match msg.get_type() {
             MessageType::Error => break, // Received error, log error message, Cloe Connection

@@ -15,6 +15,21 @@ pub enum MessageType {
     Unknown,
 }
 
+impl fmt::Debug for MessageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MessageType::Init => write!(f, "{}", "Init"),
+            MessageType::Response => write!(f, "{}", "Response"),
+            MessageType::Request => write!(f, "{}", "Request"),
+            MessageType::Payload => write!(f, "{}", "Payload"),
+            MessageType::EOF => write!(f, "{}", "EOF"),
+            MessageType::Error => write!(f, "{}", "Error"),
+            MessageType::Close => write!(f, "{}", "Close"),
+            MessageType::Unknown => write!(f, "{}", "Unknown"),
+        }
+    }
+}
+
 impl fmt::Display for MessageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

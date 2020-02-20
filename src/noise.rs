@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::consts::*;
+use crate::error::HermodError;
 use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
@@ -28,12 +29,15 @@ impl<'cfg> NoiseStream {
         peer: &Peer,
         config: &C,
         stream: &mut TcpStream,
-    ) -> Result<Self, snow::error::Error> {
-        let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
+    ) -> Result<Self, HermodError> {
+        let mut noise = Builder::new(NOISE_PATTERN.clone().parse().unwrap())
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
-            .build_initiator()?;
-        client_handshake(stream, &mut noise, peer.get_id().as_bytes()).await?;
+            .build_initiator()
+            .unwrap();
+        client_handshake(stream, &mut noise, peer.get_id().as_bytes())
+            .await
+            .unwrap();
 
         let noise = noise.into_transport_mode()?;
 
@@ -48,7 +52,7 @@ impl<'cfg> NoiseStream {
         config: &C,
         stream: &mut TcpStream,
         message: &Message,
-    ) -> Result<Self, snow::error::Error> {
+    ) -> Result<Self, HermodError> {
         let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
@@ -68,41 +72,32 @@ impl<'cfg> NoiseStream {
         &self.stream
     }
 
-    pub async fn send(&mut self, msg: &Message) {
+    pub async fn send(&mut self, msg: &Message) -> Result<(), HermodError> {
         let msg_type = msg.get_type();
         let plaintext = msg.get_payload();
         let mut ciphertext = vec![0u8; plaintext.len() + 1000];
-        let cipher_len = self
-            .noise
-            .write_message(plaintext, &mut ciphertext)
-            .unwrap();
-        );
-        self.stream.write_all(&[msg_type as u8]).await.unwrap();
-        self.stream
-            .write_all(&cipher_len.to_be_bytes())
-            .await
-            .unwrap();
-        self.stream
-            .write_all(&ciphertext[..cipher_len])
-            .await
-            .unwrap();
+        let cipher_len = self.noise.write_message(plaintext, &mut ciphertext)?;
+        self.stream.write_all(&[msg_type as u8]).await?;
+        self.stream.write_all(&cipher_len.to_be_bytes()).await?;
+        self.stream.write_all(&ciphertext[..cipher_len]).await?;
+        Ok(())
     }
 
-    pub async fn recv(&mut self) -> Message {
+    pub async fn recv(&mut self) -> Result<Message, HermodError> {
         let mut msg_type = vec![0u8; MSG_TYPE_LEN];
-        self.stream.read_exact(&mut msg_type).await.unwrap();
+        self.stream.read_exact(&mut msg_type).await?;
         if msg_type[0] == MessageType::Close as u8 {
-            return Message::new(MessageType::Close, &[]);
+            return Ok(Message::new(MessageType::Close, &[]));
         }
         let mut length = [0u8; MSG_LENGTH_LEN];
-        self.stream.read_exact(&mut length).await.unwrap();
+        self.stream.read_exact(&mut length).await?;
         let msg_len = usize::from_be_bytes(length) as usize;
         let mut enc_payload = vec![0u8; msg_len];
-        self.stream.read_exact(&mut enc_payload).await.unwrap();
+        self.stream.read_exact(&mut enc_payload).await?;
         let mut payload = vec![0u8; msg_len - MAC_LENGTH];
-        let len = self.noise.read_message(&enc_payload, &mut payload).unwrap();
+        let len = self.noise.read_message(&enc_payload, &mut payload)?;
 
-        Message::new(MessageType::from(msg_type[0]), &payload)
+        Ok(Message::new(MessageType::from(msg_type[0]), &payload))
     }
 }
 
@@ -132,17 +127,14 @@ async fn server_handshake(
     stream: &mut TcpStream,
     hs: &mut HandshakeState,
     msg: &Message,
-) -> Result<(), snow::error::Error> {
+) -> Result<(), HermodError> {
     let mut init_buffer = vec![0u8; HERMOD_HS_INIT_LEN];
     let mut resp_buffer = vec![0u8; 64];
 
     hs.read_message(&msg.get_payload()[12..], &mut init_buffer)?;
 
     let len = hs.write_message(&[], &mut resp_buffer)?;
-    stream
-        .write_all(&[MessageType::Response as u8])
-        .await
-        .unwrap();
-    stream.write_all(&resp_buffer[..len]).await.unwrap();
+    stream.write_all(&[MessageType::Response as u8]).await?;
+    stream.write_all(&resp_buffer[..len]).await?;
     Ok(())
 }
