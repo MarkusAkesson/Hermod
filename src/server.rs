@@ -85,20 +85,19 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
 
         match msg.get_type() {
             MessageType::Error => break, // Received error, log error message, Cloe Connection
-            MessageType::Request => process_incomming_request(&msg, &mut endpoint).await,
+            MessageType::Request => process_incomming_request(&msg, &mut endpoint).await?,
             MessageType::Close => break,
-            MessageType::Payload
-            | MessageType::Unknown
-            | MessageType::Init
-            | MessageType::Response
-            | MessageType::EOF => break, // log: Received message out of order {} type, Closing connection
+            _ => break, // log: Received message out of order {} type, Closing connection
         }
     }
     println!("Closing connection");
     Ok(())
 }
 
-async fn process_incomming_request(msg: &Message, endpoint: &mut Endpoint) {
+async fn process_incomming_request(
+    msg: &Message,
+    endpoint: &mut Endpoint,
+) -> Result<(), HermodError> {
     let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
-    request.respond(endpoint).await;
+    request.respond(endpoint).await
 }

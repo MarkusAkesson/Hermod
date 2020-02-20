@@ -47,7 +47,7 @@ impl Request {
         // TODO: move out of exec
         let enc_req = bincode::serialize(&self).unwrap();
         let msg = Message::new(MessageType::Request, &enc_req);
-        endpoint.send(&msg).await;
+        endpoint.send(&msg).await?;
         println!("Sending request");
         match self.method {
             RequestMethod::Upload => self.upload(endpoint).await,
@@ -86,16 +86,15 @@ impl Request {
         });
 
         while let Some(msg) = rx.recv().await {
-            endpoint.send(&msg).await;
+            endpoint.send(&msg).await?;
         }
 
         Ok(())
     }
 
     async fn download(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        println!("{:?}", &self.destination);
-
-        let file = File::create(&self.destination).await?;
+        let path = self.destination.clone();
+        let file = File::create(&path).await?;
         let mut buf_writer = BufWriter::new(file);
 
         let (tx, rx): (
@@ -107,36 +106,33 @@ impl Request {
         async_std::task::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 match msg.get_type() {
-                    MessageType::Error => return, // Received error, log error message, Close Connection, Remove file
-                    MessageType::Payload => (),
+                    MessageType::Error => {
+                        drop(buf_writer);
+                        async_std::fs::remove_file(path)
+                            .await
+                            .expect("Could not remove previously open file");
+                        return; // Received error, log error message, Close Connection, Remove file
+                    }
+                    MessageType::Payload => {
+                        let payload = msg.get_payload();
+                        buf_writer.write(payload).await.unwrap();
+                    }
                     MessageType::EOF => {
                         // EOF, flush buffer and return
                         // TODO: Log writing to file {} file.name
                         buf_writer.flush().await.unwrap();
                         return;
                     }
-                    MessageType::Request
-                    | MessageType::Close
-                    | MessageType::Unknown
-                    | MessageType::Init
-                    | MessageType::Response => return, // log Received message out of order: {} type, Closing connection
+                    _ => return, // log received unexpected message: {} type, Closing connection
                 }
-                let payload = msg.get_payload();
-                buf_writer.write(payload).await.unwrap();
-                buf_writer.flush().await.unwrap();
             }
         });
 
-        // Recv messages until an Error message has been received or the tcp connection is dropped
+        // Recv messages until an Error or Close message has been received
         loop {
             let msg = endpoint.recv().await?;
             println!("REQUEST: Received new message of type: {}", msg.get_type());
-            if msg.get_type() == MessageType::Error {
-                // TODO: Log error
-                break;
-            }
-
-            if msg.get_type() == MessageType::EOF {
+            if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
                 tx.send(msg).await;
                 break;
             }
