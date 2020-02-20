@@ -68,30 +68,19 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
         MessageType::Init => {
             Peer::new_client_peer(&str::from_utf8(&msg.get_payload()[0..12]).unwrap())
         }
-        _ => unimplemented!(),
+        _ => return Ok(()),
     };
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await;
 
     loop {
         let msg = endpoint.recv().await;
-        if msg.get_type() == MessageType::Error {
-            // TODO: Log error
-            break;
-        }
-
-        if msg.get_type() == MessageType::Close {
-            println!("Time to cose connection");
-            break;
-        }
-
-        println!("Received new message of type: {}", msg.get_type());
 
         match msg.get_type() {
             MessageType::Error => break, // Received error, log error message, Cloe Connection
             MessageType::Request => process_incomming_request(&msg, &mut endpoint).await,
+            MessageType::Close => break,
             MessageType::Payload
-            | MessageType::Close
             | MessageType::Unknown
             | MessageType::Init
             | MessageType::Response
@@ -101,6 +90,7 @@ async fn handle_connection(stream: &mut TcpStream) -> io::Result<()> {
     println!("Closing connection");
     Ok(())
 }
+
 async fn process_incomming_request(msg: &Message, endpoint: &mut Endpoint) {
     let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
     request.respond(endpoint).await;

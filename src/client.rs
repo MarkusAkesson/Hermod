@@ -1,4 +1,5 @@
 use crate::config::ClientConfig;
+use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;
@@ -25,6 +26,8 @@ impl<'hc> HermodClient<'hc> {
             // Execute the request
             let request = Request::new(&self.config);
             request.exec(&mut endpoint).await;
+            let msg = Message::new(MessageType::Close, &[]);
+            endpoint.send(&msg).await;
         });
     }
 }

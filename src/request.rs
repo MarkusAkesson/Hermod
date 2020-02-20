@@ -74,16 +74,9 @@ impl Request {
                     .unwrap();
                 if n == 0 {
                     // EOF reached
-                    // Send EOF and close to remote peer
-                    let msgs = vec![
-                        Message::new(MessageType::EOF, &[]),
-                        Message::new(MessageType::Close, &[]),
-                    ]
-                    .into_iter();
-
-                    for msg in msgs {
-                        tx.send(msg).await;
-                    }
+                    // Send EOF to peer
+                    let msg = Message::new(MessageType::EOF, &[]);
+                    tx.send(msg).await;
                     break;
                 }
                 let msg = Message::new(MessageType::Payload, &buffer);
@@ -123,7 +116,7 @@ impl Request {
                     | MessageType::Close
                     | MessageType::Unknown
                     | MessageType::Init
-                    | MessageType::Response => return, // log Received message out of order{} type, Closing connection
+                    | MessageType::Response => return, // log Received message out of order: {} type, Closing connection
                 }
                 let payload = msg.get_payload();
                 buf_writer.write(payload).await.unwrap();
@@ -134,13 +127,14 @@ impl Request {
         // Recv messages until an Error message has been received or the tcp connection is dropped
         loop {
             let msg = endpoint.recv().await;
+            println!("REQUEST: Received new message of type: {}", msg.get_type());
             if msg.get_type() == MessageType::Error {
                 // TODO: Log error
                 break;
             }
 
-            if msg.get_type() == MessageType::Close {
-                // TODO: Log error
+            if msg.get_type() == MessageType::EOF {
+                tx.send(msg).await;
                 break;
             }
 
