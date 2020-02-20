@@ -29,7 +29,13 @@ impl<'hs> HermodServer {
             while let Some(stream) = incoming.next().await {
                 task::spawn(async {
                     let mut stream = stream.unwrap();
-                    handle_connection(&mut stream).await.unwrap();
+                    match handle_connection(&mut stream).await {
+                        Ok(_) => return,
+                        Err(e) => {
+                            println!("{}", e);
+                            return;
+                        }
+                    }
                 });
             }
         });
