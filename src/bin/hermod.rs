@@ -29,6 +29,7 @@ fn start_server(args: &clap::ArgMatches) {
         ("list", Some(_)) => {
             HermodServer::list_known_clients();
         }
+        // Treat all other cases as wanting to run the server
         _ => {
             if !args.is_present("no-daemon") {
                 println!("Preparing to run server as a daemon");
@@ -42,12 +43,11 @@ fn start_server(args: &clap::ArgMatches) {
                 match daemon.start() {
                     Ok(_) => (),
                     Err(e) => {
-                        eprintln!("Error: Failed to daemonize server: ({}).\n Aborting...", e)
+                        eprintln!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
+                        return;
                     }
                 }
             }
-            // Treat all other cases as wanting to run the server
-            // TODO: Make nicer
             println!("Preparing to run the server");
             HermodServer::run_server();
         }
@@ -55,7 +55,13 @@ fn start_server(args: &clap::ArgMatches) {
 }
 
 fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
-    let host = hermod::host::load_host(args.value_of("remote").unwrap()).unwrap();
+    let host = match hermod::host::load_host(args.value_of("remote").unwrap()) {
+        Ok(host) => host,
+        Err(err) => {
+            eprintln!("{}", err);
+            return;
+        }
+    };
     let source = args
         .value_of("source")
         .expect("Obligatory argument 'source' missing, aborting");
