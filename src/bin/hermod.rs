@@ -3,6 +3,10 @@ use hermod::config::ClientConfigBuilder;
 use hermod::request::RequestMethod;
 use hermod::server::HermodServer;
 
+use std::fs::File;
+
+use daemonize::Daemonize;
+
 fn main() {
     let args = cli::get_matches();
 
@@ -26,6 +30,22 @@ fn start_server(args: &clap::ArgMatches) {
             HermodServer::list_known_clients();
         }
         _ => {
+            if !args.is_present("no-daemon") {
+                println!("Preparing to run server as a daemon");
+                let stdout = File::create("/tmp/hermod.out").unwrap();
+                let stderr = File::create("/tmp/hermod.err").unwrap();
+                let daemon = Daemonize::new()
+                    .pid_file("/tmp/hermod.pid")
+                    .stdout(stdout)
+                    .stderr(stderr);
+
+                match daemon.start() {
+                    Ok(_) => (),
+                    Err(e) => {
+                        eprintln!("Error: Failed to daemonize server: ({}).\n Aborting...", e)
+                    }
+                }
+            }
             // Treat all other cases as wanting to run the server
             // TODO: Make nicer
             println!("Preparing to run the server");
