@@ -31,24 +31,29 @@ fn start_server(args: &clap::ArgMatches) {
         }
         // Treat all other cases as wanting to run the server
         _ => {
+            // Move this to HermodServer?
             if !args.is_present("no-daemon") {
                 println!("Preparing to run server as a daemon");
                 let stdout = File::create("/tmp/hermod.out").unwrap();
                 let stderr = File::create("/tmp/hermod.err").unwrap();
                 let daemon = Daemonize::new()
                     .pid_file("/tmp/hermod.pid")
+                    .working_directory(dirs::home_dir().expect("Could not find home directory"))
                     .stdout(stdout)
                     .stderr(stderr);
 
                 match daemon.start() {
                     Ok(_) => (),
                     Err(e) => {
-                        eprintln!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
+                        println!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
                         return;
                     }
                 }
+            } else {
+                std::env::set_current_dir(dirs::home_dir().expect("Failed to read home directory"))
+                    .expect("Failed to set current working directory");
             }
-            println!("Preparing to run the server");
+            println!("Starting server");
             HermodServer::run_server();
         }
     }
