@@ -78,7 +78,9 @@ impl<'cfg> NoiseStream {
         let mut ciphertext = vec![0u8; plaintext.len() + 1000];
         let cipher_len = self.noise.write_message(plaintext, &mut ciphertext)?;
         self.stream.write_all(&[msg_type as u8]).await?;
-        self.stream.write_all(&cipher_len.to_be_bytes()).await?;
+        self.stream
+            .write_all(&(cipher_len as u32).to_be_bytes())
+            .await?;
         self.stream.write_all(&ciphertext[..cipher_len]).await?;
         Ok(())
     }
@@ -91,11 +93,11 @@ impl<'cfg> NoiseStream {
         }
         let mut length = [0u8; MSG_LENGTH_LEN];
         self.stream.read_exact(&mut length).await?;
-        let msg_len = usize::from_be_bytes(length) as usize;
+        let msg_len = u32::from_be_bytes(length) as usize;
         let mut enc_payload = vec![0u8; msg_len];
         self.stream.read_exact(&mut enc_payload).await?;
         let mut payload = vec![0u8; msg_len - MAC_LENGTH];
-        let len = self.noise.read_message(&enc_payload, &mut payload)?;
+        self.noise.read_message(&enc_payload, &mut payload)?;
 
         Ok(Message::new(MessageType::from(msg_type[0]), &payload))
     }

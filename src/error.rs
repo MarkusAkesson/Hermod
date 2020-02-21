@@ -1,6 +1,5 @@
 use std::error;
 use std::fmt;
-use std::path::Path;
 
 #[derive(Debug)]
 pub struct HermodError(Box<HermodErrorKind>);

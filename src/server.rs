@@ -73,7 +73,8 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
 
     let peer = match msg.get_type() {
         MessageType::Init => Peer::new_client_peer(
-            &str::from_utf8(&msg.get_payload()[0..12]).expect("Init Message contains wrong data"),
+            &str::from_utf8(&msg.get_payload()[0..12])
+                .expect("Failed to read client id from Init message"),
         ),
         _ => return Ok(()),
     };
