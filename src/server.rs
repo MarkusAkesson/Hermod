@@ -6,6 +6,7 @@ use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;
+use crate::share_key;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -76,11 +77,15 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
             &str::from_utf8(&msg.get_payload()[0..12])
                 .expect("Failed to read client id from Init message"),
         ),
+        MessageType::ShareKeyInit => {
+            share_key::receive_key()?;
+        }
         _ => return Ok(()),
     };
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
 
+    // Request loop listen for and handle incomming request
     loop {
         let msg = match endpoint.recv().await {
             Ok(msg) => msg,

@@ -11,6 +11,7 @@ pub mod noise;
 pub mod peer;
 pub mod request;
 pub mod server;
+pub mod share_key;
 
 #[cfg(test)]
 mod tests {
