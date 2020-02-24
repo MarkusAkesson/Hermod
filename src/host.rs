@@ -1,3 +1,4 @@
+use crate::consts::*;
 use crate::error::HermodError;
 
 use std::fmt;
@@ -98,7 +99,7 @@ impl Host {
 
         let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
-        writer.write(format!("Hostname: {}\n", &self.hostname).as_bytes())?;
+        writer.write(format!("Hostname: {}:{}\n", &self.hostname, HERMOD_PORT).as_bytes())?;
         writer.write(format!("PublicKey: {}\n", base64::encode(&self.public_key)).as_bytes())?;
         writer.write(format!("PrivateKey: {}\n", base64::encode(&self.private_key)).as_bytes())?;
         writer.write(format!("IdToken: {}\n", &self.id_token).as_bytes())?;
