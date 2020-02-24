@@ -1,20 +1,137 @@
-use crate::config::SERVER_CONFIG;
-use crate::error::HermodError;
+use crate::config::{Config, SERVER_CONFIG};
+use crate::consts::*;
+use crate::error::{HermodError, HermodErrorKind};
+use crate::genkey;
+use crate::host::Host;
+use crate::identity;
+use crate::identity::KNOWN_CLIENTS;
 use crate::message::{Message, MessageType};
 
-static NOISE_PATTERN: &'static str = "NOISE_XX_25519_ChaChaPoly_BLAKE2s";
+use std::str;
 
-use snow::{self, Builder, HandshakeState, TransportState};
+use snow::{self, Builder, HandshakeState};
 
 use async_std::net::TcpStream;
+use async_std::prelude::*;
 
-pub fn receive_key(stream: TcpStream, msg: &Message) -> Result<(), HermodError> {
+pub async fn receive_key(stream: &mut TcpStream, msg: &Message) -> Result<(), HermodError> {
+    println!("Reciving new key");
+    let mut noise = Builder::new(SHARE_KEY_PATTERN.clone().parse()?)
+        .local_private_key((*SERVER_CONFIG).get_private_key())
+        .build_responder()?;
+
+    let id = recv_identity(stream, &mut noise, msg).await?;
+
+    // TODO: Add to KNOWN_CLIENT map
+    identity::write_to_file(&id).await
+}
+
+pub fn share_key(host: Host) {
+    let keys = genkey::gen_keys().expect("Failed to generate static keys");
+    let id = genkey::gen_idtoken();
+
     let mut noise = Builder::new(
-        NOISE_PATTERN
+        SHARE_KEY_PATTERN
             .clone()
             .parse()
-            .expect("Failed to parse Noise Pattern"),
+            .expect("Invalid Noise Patter supplied"),
     )
-    .local_private_key(SERVER_CONFIG.get_private_key())
-    .build_initiator()?;
+    .local_private_key(&keys.private)
+    .build_initiator()
+    .expect("Failed to create noise sate machine");
+    async_std::task::block_on(async move {
+        let mut ipaddr = String::from(host.hostname());
+        ipaddr.push(':');
+        ipaddr.push_str(HERMOD_PORT);
+
+        let mut stream = match TcpStream::connect(ipaddr).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                eprintln!("Failed to connect to host remote server: {}", e);
+                return;
+            }
+        };
+
+        let server_key = match send_identity(&mut stream, &mut noise, &id).await {
+            Ok(sk) => sk,
+            Err(e) => {
+                eprintln!("Failed to send public key and id token to server: {}", e);
+                return;
+            }
+        };
+
+        let res = host
+            .set_id_token(&id)
+            .set_server_key(&server_key)
+            .set_private_key(&keys.private)
+            .set_public_key(&keys.public)
+            .write_to_file()
+            .map_err(|err| HermodError::new(HermodErrorKind::IoError(err)));
+        match res {
+            Ok(()) => println!("Succesfully shared keys with remote"),
+            Err(e) => eprintln!("Failed to write configuration to file: {}", e),
+        }
+    });
+}
+
+async fn recv_identity(
+    stream: &mut TcpStream,
+    noise: &mut HandshakeState,
+    msg: &Message,
+) -> Result<identity::Identity, HermodError> {
+    // -> e
+    let len = noise.read_message(msg.get_payload(), &mut [])?;
+    // <- e, s
+    let mut buf = vec![0u8; HERMOD_KS_RES1_LEN];
+    let len = noise.write_message(&[], &mut buf)?;
+    stream.write_all(&[MessageType::ShareKeyResp as u8]).await?;
+    stream.write_all(&buf[..len]).await?;
+    // -> s, id
+    let mut buf = vec![0u8; HERMOD_KS_RES2_LEN];
+    let mut id = vec![0u8; ID_TOKEN_B64LEN as usize];
+    stream.read_exact(&mut buf).await?;
+    let len = noise.read_message(&buf[MSG_TYPE_LEN..], &mut id)?;
+
+    let id = identity::Identity::new(
+        str::from_utf8(&id)
+            .map_err(|_| HermodError::new(HermodErrorKind::Other))?
+            .to_owned(),
+        noise
+            .get_remote_static()
+            .expect("Failed to receive the remotes public static key")
+            .to_vec(),
+    );
+    stream.write_all(&[MessageType::Okey as u8]).await?;
+    Ok(id)
+}
+
+async fn send_identity(
+    stream: &mut TcpStream,
+    noise: &mut HandshakeState,
+    token: &str,
+) -> Result<std::vec::Vec<u8>, HermodError> {
+    // -> e
+    let mut buf = vec![0u8; 64];
+    let len = noise.write_message(&[], &mut buf)?;
+    stream.write_all(&[MessageType::ShareKeyInit as u8]).await?;
+    stream.write_all(&buf[..len]).await?;
+    // <- e, s
+    let mut buf = vec![0u8; HERMOD_KS_RES1_LEN];
+    stream.read_exact(&mut buf).await?;
+    let len = noise.read_message(&buf[MSG_TYPE_LEN..], &mut [])?;
+    // -> s, id
+    let mut buf = vec![0u8; HERMOD_KS_RES2_LEN - MSG_TYPE_LEN];
+    let len = noise.write_message(token.as_bytes(), &mut buf)?;
+    stream.write_all(&[MessageType::ShareKeyResp as u8]).await?;
+    stream.write_all(&buf).await?;
+    // <- OK
+    let mut buf = vec![0u8; MSG_TYPE_LEN];
+    stream.read_exact(&mut buf).await?;
+    match MessageType::from(buf[0]) {
+        MessageType::Okey => Ok(noise
+            .get_remote_static()
+            .expect("Failed to receive the remotes public static key")
+            .to_vec()),
+        _ => Err(HermodError::new(HermodErrorKind::ShareKey)),
+    }
 }

@@ -1,17 +1,25 @@
 pub const PACKET_MAXLENGTH: usize = 65536;
 pub const MAC_LENGTH: usize = 16;
 
+pub const HERMOD_PORT: &'static str = "4444";
+
 pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
 pub const MSG_LENGTH_LEN: usize = 4;
 pub const MSG_PAYLOAD_LEN: usize = PACKET_MAXLENGTH - MSG_HEADER_LEN - MAC_LENGTH;
 
 pub const ID_TOKEN_LEN: u8 = 8;
+pub const ID_TOKEN_B64LEN: u8 = 12;
 
-pub const NOISE_PATTERN: &'static str = "Noise_NN_25519_ChaChaPoly_BLAKE2s";
+pub const NOISE_PATTERN: &'static str = "Noise_KK_25519_ChaChaPoly_BLAKE2s";
+pub const SHARE_KEY_PATTERN: &'static str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 
 pub const SERVER_PRIVATE_KEY_FILE: &'static str = ".hermod/server_key";
 pub const SERVER_PUBLIC_KEY_FILE: &'static str = ".hermod/server_key.pub";
 
-pub const HERMOD_HS_INIT_LEN: usize = 32;
+pub const HERMOD_HS_INIT_LEN: usize = 48;
 pub const HERMOD_HS_RESP_LEN: usize = 48;
+
+pub const HERMOD_KS_INIT_LEN: usize = 32;
+pub const HERMOD_KS_RES1_LEN: usize = 96 + MSG_TYPE_LEN;
+pub const HERMOD_KS_RES2_LEN: usize = 76 + MSG_TYPE_LEN;

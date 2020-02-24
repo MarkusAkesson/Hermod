@@ -66,22 +66,42 @@ impl<'hs> HermodServer {
 async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
     // log incomming packet from ip
 
-    // TODO: Clean up
-    // 13 = tokenid base64len +  MessageType
-    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN + 13];
-    stream.read_exact(&mut buffer).await?;
-    let msg = Message::new(MessageType::from(buffer[0]), &buffer[1..]);
-
-    let peer = match msg.get_type() {
-        MessageType::Init => Peer::new_client_peer(
-            &str::from_utf8(&msg.get_payload()[0..12])
-                .expect("Failed to read client id from Init message"),
-        ),
-        MessageType::ShareKeyInit => {
-            share_key::receive_key()?;
-        }
+    let mut msg_type = vec![0u8];
+    stream.read_exact(&mut msg_type).await?;
+    println!(
+        "Incomming message of type: {}, value: {:?}",
+        MessageType::from(msg_type[0]),
+        msg_type
+    );
+    match MessageType::from(msg_type[0]) {
+        MessageType::Init => incomming_request(stream).await,
+        MessageType::ShareKeyInit => share_key(stream).await,
         _ => return Ok(()),
-    };
+    }
+}
+
+async fn share_key(stream: &mut TcpStream) -> Result<(), HermodError> {
+    println!("Sharing key with client");
+    let mut buffer = vec![0u8; HERMOD_KS_INIT_LEN];
+    stream.read_exact(&mut buffer).await?;
+    let msg = Message::new(MessageType::ShareKeyInit, &buffer);
+    share_key::receive_key(stream, &msg).await?;
+    println!("Shared key with client");
+    Ok(())
+}
+
+async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
+    // TODO: Clean up
+    // 12 = tokenid base64len
+    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN + 12];
+    stream.read_exact(&mut buffer).await?;
+
+    let msg = Message::new(MessageType::Init, &buffer);
+
+    let peer = Peer::new_client_peer(
+        &str::from_utf8(&msg.get_payload()[0..12])
+            .expect("Failed to read client id from Init message"),
+    );
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
 
@@ -97,19 +117,14 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
 
         match msg.get_type() {
             MessageType::Error => break, // Received error, log error message, Cloe Connection
-            MessageType::Request => process_incomming_request(&msg, &mut endpoint).await?,
+            MessageType::Request => {
+                let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
+                request.respond(&mut endpoint).await?
+            }
             MessageType::Close => break,
             _ => break, // log: Received message out of order {} type, Closing connection
         }
     }
     println!("Closing connection");
     Ok(())
-}
-
-async fn process_incomming_request(
-    msg: &Message,
-    endpoint: &mut Endpoint,
-) -> Result<(), HermodError> {
-    let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
-    request.respond(endpoint).await
 }

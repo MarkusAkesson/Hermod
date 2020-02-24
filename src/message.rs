@@ -35,7 +35,7 @@ impl fmt::Debug for MessageType {
             MessageType::ShareKeyResp => write!(f, "ShareKeyResp"),
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
-            MessageType::Unknown => write!(f, "{}", "Unknown"),
+            MessageType::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -43,13 +43,13 @@ impl fmt::Debug for MessageType {
 impl fmt::Display for MessageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MessageType::Init => write!(f, "{}", "Init"),
-            MessageType::Response => write!(f, "{}", "Response"),
-            MessageType::Request => write!(f, "{}", "Request"),
-            MessageType::Payload => write!(f, "{}", "Payload"),
-            MessageType::EOF => write!(f, "{}", "EOF"),
-            MessageType::Error => write!(f, "{}", "Error"),
-            MessageType::Close => write!(f, "{}", "Close"),
+            MessageType::Init => write!(f, "Init"),
+            MessageType::Response => write!(f, "Response"),
+            MessageType::Request => write!(f, "Request"),
+            MessageType::Payload => write!(f, "Payload"),
+            MessageType::EOF => write!(f, "EOF"),
+            MessageType::Error => write!(f, "Error"),
+            MessageType::Close => write!(f, "Close"),
             MessageType::Okey => write!(f, "Okey"),
             MessageType::ShareKeyInit => write!(f, "ShareKeyInit"),
             MessageType::ShareKeyResp => write!(f, "ShareKeyResp"),
@@ -63,18 +63,18 @@ impl fmt::Display for MessageType {
 impl From<u8> for MessageType {
     fn from(value: u8) -> MessageType {
         match value {
-            0x1 => MessageType::Init,
-            0x2 => MessageType::Response,
-            0x3 => MessageType::Request,
-            0x4 => MessageType::Payload,
-            0x5 => MessageType::EOF,
-            0x6 => MessageType::Error,
-            0x7 => MessageType::Close,
-            0x8 => MessageType::Okey,
-            0x9 => MessageType::ShareKeyInit,
-            0x10 => MessageType::ShareKeyResp,
-            0x11 => MessageType::ShareIdentity,
-            0x12 => MessageType::ShareHost,
+            1 => MessageType::Init,
+            2 => MessageType::Response,
+            3 => MessageType::Request,
+            4 => MessageType::Payload,
+            5 => MessageType::EOF,
+            6 => MessageType::Error,
+            7 => MessageType::Close,
+            8 => MessageType::Okey,
+            9 => MessageType::ShareKeyInit,
+            10 => MessageType::ShareKeyResp,
+            11 => MessageType::ShareIdentity,
+            12 => MessageType::ShareHost,
             _ => MessageType::Unknown,
         }
     }
