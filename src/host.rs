@@ -1,8 +1,13 @@
+use crate::error::HermodError;
+
 use std::fmt;
-use std::fs::File;
+
 use std::io::prelude::*;
-use std::io::{self, BufRead, BufReader, BufWriter};
-use std::path::PathBuf;
+
+use async_std::fs::File;
+use async_std::io::{self, BufReader, BufWriter};
+use async_std::path::PathBuf;
+use async_std::prelude::*;
 
 static HOST_DIR: &str = ".hermod/known_hosts";
 
@@ -84,14 +89,15 @@ impl Host {
         &self.server_key
     }
 
+    // Only used from sync blocks
     pub fn write_to_file(&self) -> io::Result<()> {
         let mut path = PathBuf::new();
         path.push(dirs::home_dir().unwrap());
         path.push(HOST_DIR);
         path.push(&self.alias);
 
-        let file = File::create(path).unwrap();
-        let mut writer = BufWriter::new(file);
+        let file = std::fs::File::create(path)?;
+        let mut writer = std::io::BufWriter::new(file);
         writer.write(format!("Hostname: {}\n", &self.hostname).as_bytes())?;
         writer.write(format!("PublicKey: {}\n", base64::encode(&self.public_key)).as_bytes())?;
         writer.write(format!("PrivateKey: {}\n", base64::encode(&self.private_key)).as_bytes())?;
@@ -101,29 +107,64 @@ impl Host {
     }
 }
 
-pub fn load_host(alias: &str) -> Result<Host, &'static str> {
+pub fn exists(alias: &str) -> bool {
+    let mut path = std::path::PathBuf::new();
+    path.push(dirs::home_dir().expect("Failed to get home directory"));
+    path.push(HOST_DIR);
+    path.push(alias);
+    path.as_path().exists()
+}
+
+pub fn load_host(alias: &str) -> Result<Host, HermodError> {
     let mut path = PathBuf::new();
-    path.push(dirs::home_dir().unwrap());
+    path.push(dirs::home_dir().expect("Failed to get home directory"));
     path.push(HOST_DIR);
     path.push(alias);
 
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-
     let mut host = Host::with_alias(alias);
 
-    for line in reader.lines() {
-        let line = line.unwrap();
+    let file = std::fs::File::open(path)?;
+    let buf_reader = std::io::BufReader::new(file);
+    for line in buf_reader.lines() {
+        let line = line?;
 
         let parts: Vec<&str> = line.split_whitespace().collect();
 
         // TODO: remove ':'
         host = match parts[0] {
-            "PublicKey:" => host.set_public_key(&base64::decode(parts[1]).unwrap()),
-            "PrivateKey:" => host.set_private_key(&base64::decode(parts[1]).unwrap()),
+            "PublicKey:" => host.set_public_key(&base64::decode(parts[1])?),
+            "PrivateKey:" => host.set_private_key(&base64::decode(parts[1])?),
             "Hostname:" => host.set_hostname(parts[1]),
             "IdToken:" => host.set_id_token(parts[1]),
-            "ServerKey:" => host.set_server_key(&base64::decode(parts[1]).unwrap()),
+            "ServerKey:" => host.set_server_key(&base64::decode(parts[1])?),
+            _ => host,
+        };
+    }
+    Ok(host)
+}
+
+pub async fn load_host_async(alias: &str) -> Result<Host, HermodError> {
+    let mut path = PathBuf::new();
+    path.push(dirs::home_dir().expect("Failed to get home directory"));
+    path.push(HOST_DIR);
+    path.push(alias);
+
+    let mut host = Host::with_alias(alias);
+
+    let file = File::open(path).await?;
+    let mut lines = BufReader::new(file).lines();
+    while let Some(line) = lines.next().await {
+        let line = line?;
+
+        let parts: Vec<&str> = line.split_whitespace().collect();
+
+        // TODO: remove ':'
+        host = match parts[0] {
+            "PublicKey:" => host.set_public_key(&base64::decode(parts[1])?),
+            "PrivateKey:" => host.set_private_key(&base64::decode(parts[1])?),
+            "Hostname:" => host.set_hostname(parts[1]),
+            "IdToken:" => host.set_id_token(parts[1]),
+            "ServerKey:" => host.set_server_key(&base64::decode(parts[1])?),
             _ => host,
         };
     }

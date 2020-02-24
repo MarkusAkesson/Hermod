@@ -127,10 +127,9 @@ async fn server_handshake(
     hs: &mut HandshakeState,
     msg: &Message,
 ) -> Result<(), HermodError> {
-    let mut init_buffer = vec![0u8; HERMOD_HS_INIT_LEN];
     let mut resp_buffer = vec![0u8; 64];
 
-    hs.read_message(&msg.get_payload()[12..], &mut init_buffer)?;
+    hs.read_message(&msg.get_payload()[12..], &mut [])?;
 
     let len = hs.write_message(&[], &mut resp_buffer)?;
     stream.write_all(&[MessageType::Response as u8]).await?;

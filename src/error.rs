@@ -19,6 +19,7 @@ pub enum HermodErrorKind {
     ReadAuthorizedClients(std::io::Error),
     OutOfOrderMessage,
     Snow(snow::error::Error),
+    ShareKey,
     Other,
 }
 
@@ -65,6 +66,7 @@ impl fmt::Display for HermodError {
             }
             HermodErrorKind::OutOfOrderMessage => write!(f, "Received unexpected message"),
             HermodErrorKind::Snow(ref err) => write!(f, "{}", err),
+            HermodErrorKind::ShareKey => write!(f, "Failed to share identity"),
             HermodErrorKind::Other => write!(f, "Unspecified error"),
         }
     }
@@ -100,6 +102,35 @@ impl error::Error for HermodError {
         }
     }
 }
+
+//impl From<std::io::Error> for HermodError {
+//    fn from(err: std::io::Error) -> HermodError {
+//        match err.kind() {
+//            std::io::ErrorKind::ConnectionRefused => {
+//                HermodError::new(HermodErrorKind::ConnectionRefused(err))
+//            }
+//            std::io::ErrorKind::NotFound => HermodError::new(HermodErrorKind::FileNotFound(err)),
+//            std::io::ErrorKind::PermissionDenied
+//            | std::io::ErrorKind::ConnectionReset
+//            | std::io::ErrorKind::ConnectionAborted
+//            | std::io::ErrorKind::NotConnected
+//            | std::io::ErrorKind::AddrInUse
+//            | std::io::ErrorKind::AddrNotAvailable
+//            | std::io::ErrorKind::BrokenPipe
+//            | std::io::ErrorKind::AlreadyExists
+//            | std::io::ErrorKind::WouldBlock
+//            | std::io::ErrorKind::InvalidInput
+//            | std::io::ErrorKind::InvalidData
+//            | std::io::ErrorKind::TimedOut
+//            | std::io::ErrorKind::WriteZero
+//            | std::io::ErrorKind::Interrupted
+//            | std::io::ErrorKind::Other
+//            | std::io::ErrorKind::UnexpectedEof => HermodError::new(HermodErrorKind::IoError(err)),
+//
+//            _ => HermodError::new(HermodErrorKind::Other),
+//        }
+//    }
+//}
 
 impl From<async_std::io::Error> for HermodError {
     fn from(err: async_std::io::Error) -> HermodError {

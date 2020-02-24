@@ -24,7 +24,9 @@ impl<'hc> HermodClient<'hc> {
                     return;
                 }
             };
-            let peer = Peer::new_server_peer(self.config.get_alias());
+            let peer = Peer::new_server_peer(self.config.get_alias())
+                .await
+                .unwrap();
             // Conduct noise handshake
             let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
                 .await

@@ -1,3 +1,5 @@
+use crate::error::{HermodError, HermodErrorKind};
+
 use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
@@ -5,26 +7,29 @@ use std::io::prelude::*;
 use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 
+use async_std::prelude::*;
+
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref KNOWN_CLIENTS: HashMap<String, Client> = Client::load_clients();
+    pub static ref KNOWN_CLIENTS: HashMap<String, Identity> = Identity::load_clients();
 }
 
-pub struct Client {
+#[derive(Debug)]
+pub struct Identity {
     pub id_token: String,
     pub client_key: Vec<u8>,
 }
 
-impl fmt::Display for Client {
+impl fmt::Display for Identity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}, {}", self.id_token, base64::encode(&self.client_key))
     }
 }
 
-impl Client {
+impl Identity {
     pub fn new(id_token: String, client_key: Vec<u8>) -> Self {
-        Client {
+        Identity {
             id_token,
             client_key,
         }
@@ -38,7 +43,7 @@ impl Client {
         &self.id_token
     }
 
-    pub fn load_clients() -> HashMap<String, Client> {
+    pub fn load_clients() -> HashMap<String, Identity> {
         let mut path = PathBuf::new();
         path.push(dirs::home_dir().unwrap());
         path.push(".hermod/authorized_clients");
@@ -57,7 +62,7 @@ impl Client {
 
             clients.insert(
                 id_token.to_string(),
-                Client {
+                Identity {
                     id_token: id_token.to_string(),
                     client_key,
                 },
@@ -65,6 +70,25 @@ impl Client {
         }
         clients
     }
+}
+
+pub async fn write_to_file(id: &Identity) -> Result<(), HermodError> {
+    let mut path = PathBuf::new();
+    path.push(dirs::home_dir().expect("Failed to get home directory path"));
+    path.push(".hermod/authorized_clients");
+
+    let mut file = async_std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(path)
+        .await
+        .expect("Failed to open authorized_clients file");
+
+    file.write_all(format!("{}:{}\n", id.id_token, base64::encode(&id.client_key)).as_bytes())
+        .await
+        .map_err(|_| HermodError::new(HermodErrorKind::Other))?;
+    file.flush().await?;
+    Ok(())
 }
 
 pub fn print_known_clients() {

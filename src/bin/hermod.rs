@@ -63,7 +63,7 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
     let host = match hermod::host::load_host(args.value_of("remote").unwrap()) {
         Ok(host) => host,
         Err(err) => {
-            eprintln!("{}", err);
+            eprintln!("Unknown remote host: {}", err);
             return;
         }
     };
@@ -106,5 +106,10 @@ fn gen_key(args: &clap::ArgMatches) {
 }
 
 fn share_key(args: &clap::ArgMatches) {
-    unimplemented!()
+    let host = args
+        .value_of("host")
+        .expect("No host address provided, aborting");
+    let name = args.value_of("name").expect("No naem provided, aborting");
+    let host = hermod::host::Host::with_alias(&name).set_hostname(host);
+    hermod::share_key::share_key(host);
 }
