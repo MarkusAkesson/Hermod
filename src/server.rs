@@ -43,19 +43,22 @@ impl<'hs> HermodServer {
     }
 
     pub fn setup() {
-        let keys = genkey::create_server_keys().unwrap();
+        let keys =
+            genkey::create_server_keys().expect("Failed to crate static keys for the server");
 
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
-            path.push(dirs::home_dir().unwrap());
+            path.push(dirs::home_dir().expect("Faield to het home directory"));
             path.push(filepath);
-            let mut file = File::create(path).unwrap();
+            let mut file = File::create(path)?;
             file.write_all(base64::encode(key).as_bytes())?;
             Ok(())
         };
 
-        write_to_file(&keys.private, SERVER_PRIVATE_KEY_FILE).unwrap();
-        write_to_file(&keys.public, SERVER_PUBLIC_KEY_FILE).unwrap();
+        write_to_file(&keys.private, SERVER_PRIVATE_KEY_FILE)
+            .expect("Failed to write the private key to file");
+        write_to_file(&keys.public, SERVER_PUBLIC_KEY_FILE)
+            .expect("Failed to write the public key to file");
     }
 
     pub fn list_known_clients() {
