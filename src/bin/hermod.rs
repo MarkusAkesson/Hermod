@@ -88,7 +88,7 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 
 fn gen_key(args: &clap::ArgMatches) {
     println!("Generating a new static keypair and a new identification token...");
-    let keys = hermod::genkey::gen_keys().unwrap();
+    let keys = hermod::genkey::gen_keys().expect("Failed to generate static keys");
     let private_key = keys.private;
     let public_key = keys.public;
     let id_token = hermod::genkey::gen_idtoken();
@@ -102,7 +102,8 @@ fn gen_key(args: &clap::ArgMatches) {
 
     println!("{}", host);
 
-    host.write_to_file().unwrap();
+    host.write_to_file()
+        .expect("Failed to write generated key to file");
 }
 
 fn share_key(args: &clap::ArgMatches) {
