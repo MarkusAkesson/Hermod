@@ -48,7 +48,7 @@ impl<'hs> HermodServer {
 
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
-            path.push(dirs::home_dir().expect("Faield to het home directory"));
+            path.push(dirs::home_dir().expect("Failed to het home directory"));
             path.push(filepath);
             let mut file = File::create(path)?;
             file.write_all(base64::encode(key).as_bytes())?;
