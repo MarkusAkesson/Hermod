@@ -1,7 +1,8 @@
 FROM rust:1.41 as builder
 
 WORKDIR /usr/src/Hermod
-COPY . .
+COPY Cargo.toml .
+COPY src/ src/.
 
 RUN cargo install --path .
 
