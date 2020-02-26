@@ -10,7 +10,7 @@ use async_std::io::{self, BufReader, BufWriter};
 use async_std::path::PathBuf;
 use async_std::prelude::*;
 
-static HOST_DIR: &str = ".hermod/known_hosts";
+static HOST_DIR: &str = "known_hosts";
 
 pub struct Host {
     pub alias: String,
@@ -94,7 +94,11 @@ impl Host {
     pub fn write_to_file(&self) -> io::Result<()> {
         let mut path = PathBuf::new();
         path.push(dirs::home_dir().unwrap());
+        path.push(HERMOD_BASE_DIR);
         path.push(HOST_DIR);
+
+        std::fs::create_dir_all(&path).expect("Failed to crate known_hosts directory");
+
         path.push(&self.alias);
 
         let file = std::fs::File::create(path)?;
@@ -119,6 +123,7 @@ pub fn exists(alias: &str) -> bool {
 pub fn load_host(alias: &str) -> Result<Host, HermodError> {
     let mut path = PathBuf::new();
     path.push(dirs::home_dir().expect("Failed to get home directory"));
+    path.push(HERMOD_BASE_DIR);
     path.push(HOST_DIR);
     path.push(alias);
 
@@ -147,6 +152,7 @@ pub fn load_host(alias: &str) -> Result<Host, HermodError> {
 pub async fn load_host_async(alias: &str) -> Result<Host, HermodError> {
     let mut path = PathBuf::new();
     path.push(dirs::home_dir().expect("Failed to get home directory"));
+    path.push(HERMOD_BASE_DIR);
     path.push(HOST_DIR);
     path.push(alias);
 
