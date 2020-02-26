@@ -14,8 +14,10 @@ pub const ID_TOKEN_B64LEN: u8 = 12;
 pub const NOISE_PATTERN: &'static str = "Noise_KK_25519_ChaChaPoly_BLAKE2s";
 pub const SHARE_KEY_PATTERN: &'static str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 
-pub const SERVER_PRIVATE_KEY_FILE: &'static str = ".hermod/server_key";
-pub const SERVER_PUBLIC_KEY_FILE: &'static str = ".hermod/server_key.pub";
+pub const HERMOD_BASE_DIR: &'static str = ".hermod";
+
+pub const SERVER_PRIVATE_KEY_FILE: &'static str = "server_key";
+pub const SERVER_PUBLIC_KEY_FILE: &'static str = "server_key.pub";
 
 pub const HERMOD_HS_INIT_LEN: usize = 48;
 pub const HERMOD_HS_RESP_LEN: usize = 48;

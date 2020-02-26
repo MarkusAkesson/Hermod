@@ -8,7 +8,7 @@ use crate::peer::Peer;
 use crate::request::Request;
 use crate::share_key;
 
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use std::str;
@@ -48,7 +48,9 @@ impl<'hs> HermodServer {
 
         let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
-            path.push(dirs::home_dir().expect("Failed to het home directory"));
+            path.push(dirs::home_dir().expect("Failed to get home directory"));
+            path.push(HERMOD_BASE_DIR);
+            fs::create_dir_all(&path).expect("Failed to create hermod directory directory");
             path.push(filepath);
             let mut file = File::create(path)?;
             file.write_all(base64::encode(key).as_bytes())?;
