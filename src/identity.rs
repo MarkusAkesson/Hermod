@@ -1,3 +1,4 @@
+use crate::consts::*;
 use crate::error::{HermodError, HermodErrorKind};
 
 use std::collections::HashMap;
@@ -46,7 +47,8 @@ impl Identity {
     pub fn load_clients() -> HashMap<String, Identity> {
         let mut path = PathBuf::new();
         path.push(dirs::home_dir().unwrap());
-        path.push(".hermod/authorized_clients");
+        path.push(HERMOD_BASE_DIR);
+        path.push("authorized_clients");
 
         let file = File::open(path).expect("Failed to open authorized_clients file");
         let lines = BufReader::new(file).lines();
@@ -75,7 +77,8 @@ impl Identity {
 pub async fn write_to_file(id: &Identity) -> Result<(), HermodError> {
     let mut path = PathBuf::new();
     path.push(dirs::home_dir().expect("Failed to get home directory path"));
-    path.push(".hermod/authorized_clients");
+    path.push(HERMOD_BASE_DIR);
+    path.push("authorized_clients");
 
     let mut file = async_std::fs::OpenOptions::new()
         .append(true)

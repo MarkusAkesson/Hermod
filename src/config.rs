@@ -1,5 +1,4 @@
-use crate::consts::SERVER_PRIVATE_KEY_FILE;
-use crate::consts::SERVER_PUBLIC_KEY_FILE;
+use crate::consts::*;
 use crate::host::Host;
 use crate::request::RequestMethod;
 
@@ -110,6 +109,7 @@ impl ServerConfig {
         let read_file = |buffer: &mut Vec<u8>, file_name: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
             path.push(dirs::home_dir().unwrap());
+            path.push(HERMOD_BASE_DIR);
             path.push(file_name);
             let mut f = File::open(path)?;
             f.read_to_end(buffer)?;
