@@ -23,7 +23,7 @@ pub struct HermodServer {}
 impl<'hs> HermodServer {
     pub fn run_server() {
         async_std::task::block_on(async {
-            let listener: TcpListener = TcpListener::bind("127.0.0.1:4444").await.unwrap();
+            let listener: TcpListener = TcpListener::bind("0.0.0.0:4444").await.unwrap();
             println!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener.incoming();
