@@ -28,14 +28,17 @@ fi
 # Start server
 echo "Starting server"
 docker run -dit --rm --name hermod-server -v output:/output hermod-server
-docker inspect hermod-server | rg IPAddress
 
 sleep 2
 
 # Start client
 echo "Starting client"
-docker run -it --rm --name hermod-client -v sources:/sources hermod-client
-docker inspect hermod-client | rg IPAddress
+docker run -it --name hermod-client -v sources:/sources hermod-client
+
+for FILE in "${srcs[@]}"; do
+    docker cp hermod-server:/$OUT_DIR/$FILE $OUT_DIR/
+    docker cp hermod-client:/$SRC_DIR/$FILE $SRC_DIR/
+done
 
 # Compare hashes
 echo "Comparing hashes..."
@@ -43,8 +46,8 @@ echo "Comparing hashes..."
 for FILE in "${srcs[@]}"; do
     printf "Checking $FILE: "
 
-    expected=$(b3sum $SRC_DIR/$FILE)
-    received=$(b3sum $OUT_DIR/$FILE)
+    expected=$(b3sum --no-names $SRC_DIR/$FILE)
+    received=$(b3sum --no-names $OUT_DIR/$FILE)
 
     if [ "$expected" = "$received" ]; then
         printf "Ok {$expected}\n"
@@ -55,6 +58,7 @@ for FILE in "${srcs[@]}"; do
 done
 
 docker stop hermod-server &>/dev/null &
+docker rm hermod-client
 
 rm -r sources
 rm -r output

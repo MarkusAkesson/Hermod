@@ -10,7 +10,6 @@ FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
 RUN mkdir ~/.hermod
 
-VOLUME /sources
 
 WORKDIR /sources
 
