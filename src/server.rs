@@ -42,7 +42,23 @@ impl<'hs> HermodServer {
         });
     }
 
-    pub fn setup() {
+    pub fn setup(force: bool) {
+        let mut path = PathBuf::new();
+        path.push(dirs::home_dir().expect("Failed to get home directory"));
+        path.push(HERMOD_BASE_DIR);
+        let mut priv_path = path.clone();
+        priv_path.push(SERVER_PRIVATE_KEY_FILE);
+        path.pop();
+        path.push(SERVER_PUBLIC_KEY_FILE);
+        let pub_path = path.as_path();
+
+        if (priv_path.exists() || pub_path.exists()) && !force {
+            eprintln!("Previous configuration found, pass --force to overwrite");
+            return;
+        } else {
+            println!("Existing configuration found, overwriting");
+        }
+
         let keys =
             genkey::create_server_keys().expect("Failed to crate static keys for the server");
 
