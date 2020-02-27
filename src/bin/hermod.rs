@@ -22,9 +22,10 @@ fn main() {
 
 fn start_server(args: &clap::ArgMatches) {
     match args.subcommand() {
-        ("setup", Some(_)) => {
+        ("setup", Some(args)) => {
             println!("Genereting new static files for the server...");
-            HermodServer::setup();
+            let force = args.is_present("force");
+            HermodServer::setup(force);
         }
         ("list", Some(_)) => {
             HermodServer::list_known_clients();
@@ -88,12 +89,20 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 
 fn gen_key(args: &clap::ArgMatches) {
     println!("Generating a new static keypair and a new identification token...");
+    let alias = args.value_of("alias").expect("No alias provided, aborting");
+    let force = args.is_present("force");
+
+    if hermod::host::exists(&alias) && !force {
+        eprintln!("Found an existing host with that alias, to overwrite pass --force");
+        return;
+    } else {
+        println!("Found an existing host with that alias, overwriting");
+    }
+
     let keys = hermod::genkey::gen_keys().expect("Failed to generate static keys");
     let private_key = keys.private;
     let public_key = keys.public;
     let id_token = hermod::genkey::gen_idtoken();
-
-    let alias = args.value_of("alias").expect("No alias provided, aborting");
 
     let host = hermod::host::Host::with_alias(&alias)
         .set_id_token(&id_token)
@@ -107,10 +116,19 @@ fn gen_key(args: &clap::ArgMatches) {
 }
 
 fn share_key(args: &clap::ArgMatches) {
+    let name = args.value_of("name").expect("No naem provided, aborting");
+    let force = args.is_present("force");
+
+    if hermod::host::exists(&name) && !force {
+        eprintln!("Found an existing host with that alias, to overwrite pass --force");
+        return;
+    } else {
+        println!("Found an existing host with that alias, overwriting");
+    }
+
     let host = args
         .value_of("host")
         .expect("No host address provided, aborting");
-    let name = args.value_of("name").expect("No naem provided, aborting");
     let host = hermod::host::Host::with_alias(&name).set_hostname(host);
     hermod::share_key::share_key(host);
 }
