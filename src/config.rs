@@ -106,9 +106,9 @@ impl ServerConfig {
         let mut public_key = Vec::with_capacity(44);
         let mut private_key = Vec::with_capacity(44);
 
-        let read_file = |buffer: &mut Vec<u8>, file_name: &str| -> io::Result<()> {
+        let read_key_file = |buffer: &mut Vec<u8>, file_name: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
-            path.push(dirs::home_dir().unwrap());
+            path.push(dirs::home_dir().expect("Failed to get home directory"));
             path.push(HERMOD_BASE_DIR);
             path.push(file_name);
             let mut f = File::open(path)?;
@@ -116,9 +116,9 @@ impl ServerConfig {
             Ok(())
         };
 
-        read_file(&mut public_key, SERVER_PUBLIC_KEY_FILE)
+        read_key_file(&mut public_key, SERVER_PUBLIC_KEY_FILE)
             .expect("Failed to read servers public key");
-        read_file(&mut private_key, SERVER_PRIVATE_KEY_FILE)
+        read_key_file(&mut private_key, SERVER_PRIVATE_KEY_FILE)
             .expect("Failed to read servers private key");
 
         let public_key = base64::decode(&public_key).unwrap();
