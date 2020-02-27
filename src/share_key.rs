@@ -43,7 +43,7 @@ pub fn share_key(host: Host) {
         let mut ipaddr = String::from(host.hostname());
         ipaddr.push(':');
         ipaddr.push_str(HERMOD_PORT);
-
+        println!("Connecting to {}", ipaddr);
         let mut stream = match TcpStream::connect(ipaddr).await {
             Ok(stream) => stream,
             Err(e) => {
