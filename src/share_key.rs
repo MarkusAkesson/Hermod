@@ -11,7 +11,6 @@ use std::str;
 
 use snow::{self, Builder, HandshakeState};
 
-use async_std::net::SocketAddr;
 use async_std::net::TcpStream;
 use async_std::net::ToSocketAddrs;
 use async_std::prelude::*;
@@ -25,7 +24,12 @@ pub async fn receive_key(stream: &mut TcpStream, msg: &Message) -> Result<(), He
     let id = recv_identity(stream, &mut noise, msg).await?;
 
     // TODO: Add to KNOWN_CLIENT map
-    identity::write_to_file(&id).await
+    identity::write_to_file(&id).await?;
+    KNOWN_CLIENTS
+        .lock()
+        .await
+        .insert(id.get_id().to_owned(), id);
+    Ok(())
 }
 
 pub fn share_key(host: Host) {

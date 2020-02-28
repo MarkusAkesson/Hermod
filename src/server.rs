@@ -122,7 +122,8 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
     let peer = Peer::new_client_peer(
         &str::from_utf8(&msg.get_payload()[0..12])
             .expect("Failed to read client id from Init message"),
-    );
+    )
+    .await?;
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
 
