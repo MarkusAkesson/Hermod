@@ -6,14 +6,14 @@ mkdir output
 SRC_DIR="/sources"
 DEST_DIR="/output"
 REMOTE="test"
-HOST_IP=172.17.0.2
+HOST_NAME=hermod-server
 
 srcs=(large.file medium.file small.file)
 
 set -e
 
 # Share key with server
-hermod share-key --host $HOST_IP --name $REMOTE
+hermod share-key --host $HOST_NAME --name $REMOTE
 
 # Upload 3 files
 pids=()

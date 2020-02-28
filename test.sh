@@ -5,15 +5,14 @@ mkdir output
 
 SRC_DIR="sources"
 OUT_DIR="output"
-REMOTE="test"
-
-SERVER_IP=172.17.0.2
-CLIENT_IP=172.17.0.3
 
 srcs=(large.file medium.file small.file)
 
 # Exit on first error
 set -e
+
+command -v b3sum >/dev/null 2>&1 || { echo >&2 "b3sum is required but it's not installed. Install it with 'cargo install b3sum'. Aborting."; exit 1; }
+
 
 # Build server and client
 
@@ -25,17 +24,21 @@ else
     echo "Reusing old containers"
 fi
 
+docker network create test
+
 # Start server
 echo "Starting server"
-docker run -dit --rm --name hermod-server -v output:/output hermod-server
+docker run -dit --rm --name hermod-server -v output:/output --network test hermod-server
 
 sleep 2
 
 # Start client
 echo "Starting client"
-docker run -it --name hermod-client -v sources:/sources hermod-client
+docker run -it --name hermod-client -v sources:/sources --network test hermod-client
 
+# Fetching sent files to compare
 for FILE in "${srcs[@]}"; do
+    echo "Fetching $FILE"
     docker cp hermod-server:/$OUT_DIR/$FILE $OUT_DIR/
     docker cp hermod-client:/$SRC_DIR/$FILE $SRC_DIR/
 done
@@ -57,8 +60,11 @@ for FILE in "${srcs[@]}"; do
 
 done
 
-docker stop hermod-server &>/dev/null &
-docker rm hermod-client
+# Cleaning up
+echo "Cleaning up"
+docker stop hermod-server &>/dev/null
+docker rm hermod-client &>/dev/null
+docker network rm test &>/dev/null
 
 rm -r sources
 rm -r output
