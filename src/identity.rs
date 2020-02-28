@@ -9,11 +9,13 @@ use std::io::{self, BufReader, BufWriter};
 use std::path::PathBuf;
 
 use async_std::prelude::*;
+use async_std::sync::Mutex;
 
 use lazy_static::lazy_static;
 
 lazy_static! {
-    pub static ref KNOWN_CLIENTS: HashMap<String, Identity> = Identity::load_clients();
+    pub static ref KNOWN_CLIENTS: Mutex<HashMap<String, Identity>> =
+        Mutex::new(Identity::load_clients());
 }
 
 #[derive(Debug)]
@@ -95,22 +97,24 @@ pub async fn write_to_file(id: &Identity) -> Result<(), HermodError> {
 }
 
 pub fn print_known_clients() {
-    let num_clients = KNOWN_CLIENTS.len();
+    async_std::task::block_on(async {
+        let num_clients = KNOWN_CLIENTS.lock().await.len();
 
-    if num_clients == 0 {
-        println!("No known clients found.");
-        return;
-    }
+        if num_clients == 0 {
+            println!("No known clients found.");
+            return;
+        }
 
-    let mut writer = BufWriter::new(io::stdout());
+        let mut writer = BufWriter::new(io::stdout());
 
-    writer
-        .write(format!("Found {} known client(s)\n", num_clients).as_ref())
-        .unwrap();
-    writer
-        .write(format!("TOKEN PUBLIC_KEY\n").as_ref())
-        .unwrap();
-    KNOWN_CLIENTS.values().for_each(|v| {
-        writer.write(format!("{}\n", v).as_ref()).unwrap();
+        writer
+            .write(format!("Found {} known client(s)\n", num_clients).as_ref())
+            .unwrap();
+        writer
+            .write(format!("TOKEN PUBLIC_KEY\n").as_ref())
+            .unwrap();
+        KNOWN_CLIENTS.lock().await.values().for_each(|v| {
+            writer.write(format!("{}\n", v).as_ref()).unwrap();
+        });
     });
 }

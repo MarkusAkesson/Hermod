@@ -1,5 +1,5 @@
 use crate::config::{ClientConfig, SERVER_CONFIG};
-use crate::error::HermodError;
+use crate::error::{HermodError, HermodErrorKind};
 use crate::host::{self, Host};
 use crate::identity::{Identity, KNOWN_CLIENTS};
 use crate::message::Message;
@@ -18,14 +18,26 @@ impl Peer {
         Ok(Peer::Host(host))
     }
 
-    pub fn new_client_peer(id_token: &str) -> Self {
-        println!("{}", id_token);
-        let id = KNOWN_CLIENTS.get(id_token).unwrap();
+    pub async fn new_client_peer(id: &str) -> Result<Self, HermodError> {
+        let id_token = KNOWN_CLIENTS
+            .lock()
+            .await
+            .get(id)
+            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?
+            .get_id()
+            .to_owned();
+        let client_key = KNOWN_CLIENTS
+            .lock()
+            .await
+            .get(id)
+            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?
+            .get_public_key()
+            .to_vec();
 
-        Peer::Identity(Identity {
-            id_token: id.get_id().to_owned(),
-            client_key: id.get_public_key().to_vec(),
-        })
+        Ok(Peer::Identity(Identity {
+            id_token,
+            client_key,
+        }))
     }
 
     pub fn get_id(&self) -> &str {
