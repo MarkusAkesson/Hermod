@@ -4,6 +4,7 @@ use hermod::request::RequestMethod;
 use hermod::server::HermodServer;
 
 use std::fs::File;
+use std::net::SocketAddr;
 
 use daemonize::Daemonize;
 
@@ -54,8 +55,10 @@ fn start_server(args: &clap::ArgMatches) {
                 std::env::set_current_dir(dirs::home_dir().expect("Failed to read home directory"))
                     .expect("Failed to set current working directory");
             }
+            let ip = args.value_of("ip").unwrap();
+            let socket_addr = SocketAddr::new(ip.parse().unwrap(), hermod::consts::HERMOD_PORT);
             println!("Starting server");
-            HermodServer::run_server();
+            HermodServer::run_server(socket_addr);
         }
     }
 }

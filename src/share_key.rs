@@ -11,7 +11,9 @@ use std::str;
 
 use snow::{self, Builder, HandshakeState};
 
+use async_std::net::SocketAddr;
 use async_std::net::TcpStream;
+use async_std::net::ToSocketAddrs;
 use async_std::prelude::*;
 
 pub async fn receive_key(stream: &mut TcpStream, msg: &Message) -> Result<(), HermodError> {
@@ -40,11 +42,9 @@ pub fn share_key(host: Host) {
     .build_initiator()
     .expect("Failed to create noise sate machine");
     async_std::task::block_on(async move {
-        let mut ipaddr = String::from(host.hostname());
-        ipaddr.push(':');
-        ipaddr.push_str(HERMOD_PORT);
-        println!("Connecting to {}", ipaddr);
-        let mut stream = match TcpStream::connect(ipaddr).await {
+        let socket_addr = (host.hostname(), HERMOD_PORT);
+        println!("Connecting to {:?}", socket_addr);
+        let mut stream = match TcpStream::connect(socket_addr).await {
             Ok(stream) => stream,
             Err(e) => {
                 eprintln!("Failed to connect to host remote server: {}", e);
