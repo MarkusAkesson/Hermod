@@ -10,6 +10,7 @@ use crate::share_key;
 
 use std::fs::{self, File};
 use std::io::prelude::*;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str;
 
@@ -21,9 +22,9 @@ use async_std::task;
 pub struct HermodServer {}
 
 impl<'hs> HermodServer {
-    pub fn run_server() {
+    pub fn run_server(ip: SocketAddr) {
         async_std::task::block_on(async {
-            let listener: TcpListener = TcpListener::bind("0.0.0.0:4444").await.unwrap();
+            let listener: TcpListener = TcpListener::bind(ip).await.unwrap();
             println!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener.incoming();
@@ -43,26 +44,25 @@ impl<'hs> HermodServer {
     }
 
     pub fn setup(force: bool) {
-        let mut path = PathBuf::new();
-        path.push(dirs::home_dir().expect("Failed to get home directory"));
-        path.push(HERMOD_BASE_DIR);
-        let mut priv_path = path.clone();
-        priv_path.push(SERVER_PRIVATE_KEY_FILE);
-        path.pop();
-        path.push(SERVER_PUBLIC_KEY_FILE);
-        let pub_path = path.as_path();
+        let exists = |filepath: &str| -> bool {
+            let mut path = PathBuf::new();
+            path.push(dirs::home_dir().expect("Failed to get home directory"));
+            path.push(HERMOD_BASE_DIR);
+            path.push(filepath);
+            path.as_path().exists()
+        };
 
-        if (priv_path.exists() || pub_path.exists()) && !force {
+        if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
             eprintln!("Previous configuration found, pass --force to overwrite");
             return;
-        } else {
+        } else if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
             println!("Existing configuration found, overwriting");
         }
 
         let keys =
             genkey::create_server_keys().expect("Failed to crate static keys for the server");
 
-        let write_to_file = |key: &[u8], filepath: &str| -> io::Result<()> {
+        let write_key = |key: &[u8], filepath: &str| -> io::Result<()> {
             let mut path = PathBuf::new();
             path.push(dirs::home_dir().expect("Failed to get home directory"));
             path.push(HERMOD_BASE_DIR);
@@ -73,9 +73,9 @@ impl<'hs> HermodServer {
             Ok(())
         };
 
-        write_to_file(&keys.private, SERVER_PRIVATE_KEY_FILE)
+        write_key(&keys.private, SERVER_PRIVATE_KEY_FILE)
             .expect("Failed to write the private key to file");
-        write_to_file(&keys.public, SERVER_PUBLIC_KEY_FILE)
+        write_key(&keys.public, SERVER_PUBLIC_KEY_FILE)
             .expect("Failed to write the public key to file");
     }
 

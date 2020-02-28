@@ -1,7 +1,7 @@
 pub const PACKET_MAXLENGTH: usize = 65536;
 pub const MAC_LENGTH: usize = 16;
 
-pub const HERMOD_PORT: &'static str = "4444";
+pub const HERMOD_PORT: u16 = 4444;
 
 pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
