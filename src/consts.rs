@@ -19,6 +19,8 @@ pub const HERMOD_BASE_DIR: &'static str = ".hermod";
 pub const SERVER_PRIVATE_KEY_FILE: &'static str = "server_key";
 pub const SERVER_PUBLIC_KEY_FILE: &'static str = "server_key.pub";
 
+pub const HERMOD_LOG_FILE: &'static str = ".hermod/server.log";
+
 pub const HERMOD_HS_INIT_LEN: usize = 48;
 pub const HERMOD_HS_RESP_LEN: usize = 48;
 

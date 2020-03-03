@@ -6,6 +6,7 @@ pub mod error;
 pub mod genkey;
 pub mod host;
 pub mod identity;
+pub mod log;
 pub mod message;
 pub mod noise;
 pub mod peer;

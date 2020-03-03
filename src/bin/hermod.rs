@@ -7,6 +7,7 @@ use std::fs::File;
 use std::net::SocketAddr;
 
 use daemonize::Daemonize;
+use log::info;
 
 fn main() {
     let args = cli::get_matches();
@@ -34,6 +35,7 @@ fn start_server(args: &clap::ArgMatches) {
         // Treat all other cases as wanting to run the server
         _ => {
             // Move this to HermodServer?
+            let verbosity = args.occurrences_of("verbosity");
             if !args.is_present("no-daemon") {
                 println!("Preparing to run server as a daemon");
                 let stdout = File::create("/tmp/hermod.out").unwrap();
@@ -51,13 +53,24 @@ fn start_server(args: &clap::ArgMatches) {
                         return;
                     }
                 }
+
+                match hermod::log::setup_logger(false, verbosity) {
+                    Ok(()) => (),
+                    Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
+                }
             } else {
                 std::env::set_current_dir(dirs::home_dir().expect("Failed to read home directory"))
                     .expect("Failed to set current working directory");
+
+                match hermod::log::setup_logger(true, verbosity) {
+                    Ok(()) => (),
+                    Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
+                }
             }
+
             let ip = args.value_of("ip").unwrap();
             let socket_addr = SocketAddr::new(ip.parse().unwrap(), hermod::consts::HERMOD_PORT);
-            println!("Starting server");
+            info!("Starting server");
             HermodServer::run_server(socket_addr);
         }
     }
