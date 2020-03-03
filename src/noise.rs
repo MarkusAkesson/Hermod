@@ -107,9 +107,7 @@ async fn client_handshake(
 ) -> Result<(), snow::error::Error> {
     let mut init_buffer = vec![0u8; 64];
 
-    let len = hs
-        .write_message(&[], &mut init_buffer)
-        .expect("Failed to encrypt");
+    let len = hs.write_message(&[], &mut init_buffer)?;
 
     stream.write_all(&[MessageType::Init as u8]).await.unwrap();
     stream.write_all(token).await.unwrap();

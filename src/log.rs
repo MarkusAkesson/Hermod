@@ -1,4 +1,6 @@
-use crate::consts::HERMOD_LOG_FILE;
+use crate::consts::*;
+
+use std::path::PathBuf;
 
 pub fn setup_logger(stdout: bool, verbosity: u64) -> Result<(), fern::InitError> {
     let mut base_config = fern::Dispatch::new();
@@ -20,6 +22,14 @@ pub fn setup_logger(stdout: bool, verbosity: u64) -> Result<(), fern::InitError>
 }
 
 fn file_logger() -> Result<fern::Dispatch, fern::InitError> {
+    let log_path: PathBuf = [
+        dirs::home_dir().expect("Failed to get home_directory"),
+        HERMOD_BASE_DIR.into(),
+        HERMOD_LOG_FILE.into(),
+    ]
+    .iter()
+    .collect();
+
     let cfg = fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -30,7 +40,7 @@ fn file_logger() -> Result<fern::Dispatch, fern::InitError> {
                 message
             ))
         })
-        .chain(fern::log_file(HERMOD_LOG_FILE)?);
+        .chain(fern::log_file(log_path)?);
     Ok(cfg)
 }
 
@@ -39,7 +49,7 @@ fn stdout_logger() -> Result<fern::Dispatch, fern::InitError> {
         .format(|out, message, record| {
             if record.level() > log::LevelFilter::Info {
                 out.finish(format_args!(
-                    "---\nDebug: {}: {}\n",
+                    "---\nDebug: {}: {}\n---",
                     chrono::Local::now().format("%H%M%s"),
                     message
                 ))

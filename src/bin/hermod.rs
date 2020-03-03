@@ -7,7 +7,7 @@ use std::fs::File;
 use std::net::SocketAddr;
 
 use daemonize::Daemonize;
-use log::info;
+use log::{error, info};
 
 fn main() {
     let args = cli::get_matches();
@@ -23,9 +23,18 @@ fn main() {
 }
 
 fn start_server(args: &clap::ArgMatches) {
+    // Setup logging
+    let daemonize = !args.is_present("no-daemon");
+    let verbosity = args.occurrences_of("verbosity");
+
+    match hermod::log::setup_logger(!daemonize, verbosity) {
+        Ok(()) => (),
+        Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
+    }
+
     match args.subcommand() {
         ("setup", Some(args)) => {
-            println!("Genereting new static files for the server...");
+            info!("Generating new static files for the server...");
             let force = args.is_present("force");
             HermodServer::setup(force);
         }
@@ -35,9 +44,8 @@ fn start_server(args: &clap::ArgMatches) {
         // Treat all other cases as wanting to run the server
         _ => {
             // Move this to HermodServer?
-            let verbosity = args.occurrences_of("verbosity");
-            if !args.is_present("no-daemon") {
-                println!("Preparing to run server as a daemon");
+            if daemonize {
+                info!("Preparing to run server as a daemon");
                 let stdout = File::create("/tmp/hermod.out").unwrap();
                 let stderr = File::create("/tmp/hermod.err").unwrap();
                 let daemon = Daemonize::new()
@@ -49,23 +57,13 @@ fn start_server(args: &clap::ArgMatches) {
                 match daemon.start() {
                     Ok(_) => (),
                     Err(e) => {
-                        println!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
+                        error!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
                         return;
                     }
-                }
-
-                match hermod::log::setup_logger(false, verbosity) {
-                    Ok(()) => (),
-                    Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
                 }
             } else {
                 std::env::set_current_dir(dirs::home_dir().expect("Failed to read home directory"))
                     .expect("Failed to set current working directory");
-
-                match hermod::log::setup_logger(true, verbosity) {
-                    Ok(()) => (),
-                    Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
-                }
             }
 
             let ip = args.value_of("ip").unwrap();

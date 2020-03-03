@@ -11,6 +11,8 @@ use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
 use async_std::prelude::*;
 
+use log::info;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -71,7 +73,7 @@ impl Request {
     }
 
     pub async fn respond(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        println!("Received new request: {}", self);
+        info!("Received new request: {}", self);
         match self.method {
             RequestMethod::Upload => self.download(endpoint).await,
             RequestMethod::Download => self.upload(endpoint).await,
@@ -83,7 +85,7 @@ impl Request {
         let enc_req = bincode::serialize(&self).unwrap();
         let msg = Message::new(MessageType::Request, &enc_req);
         endpoint.send(&msg).await?;
-        println!("Sending request");
+        info!("Sending request");
         match self.method {
             RequestMethod::Upload => self.upload(endpoint).await,
             RequestMethod::Download => self.download(endpoint).await,
@@ -180,7 +182,7 @@ impl Request {
         // Recv messages until an Error or Close message has been received
         loop {
             let msg = endpoint.recv().await?;
-            println!("REQUEST: Received new message of type: {}", msg.get_type());
+            info!("REQUEST: Received new message of type: {}", msg.get_type());
             if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
                 tx.send(msg).await;
                 break;

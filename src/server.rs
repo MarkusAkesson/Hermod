@@ -19,13 +19,15 @@ use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::task;
 
+use log::{debug, error, info};
+
 pub struct HermodServer {}
 
 impl<'hs> HermodServer {
     pub fn run_server(ip: SocketAddr) {
         async_std::task::block_on(async {
             let listener: TcpListener = TcpListener::bind(ip).await.unwrap();
-            println!("Listening on {}", listener.local_addr().unwrap());
+            info!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener.incoming();
             while let Some(stream) = incoming.next().await {
@@ -34,7 +36,7 @@ impl<'hs> HermodServer {
                     match handle_connection(&mut stream).await {
                         Ok(_) => return,
                         Err(e) => {
-                            println!("{}", e);
+                            error!("{}", e);
                             return;
                         }
                     }
@@ -56,7 +58,7 @@ impl<'hs> HermodServer {
             eprintln!("Previous configuration found, pass --force to overwrite");
             return;
         } else if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
-            println!("Existing configuration found, overwriting");
+            info!("Existing configuration found, overwriting");
         }
 
         let keys =
@@ -89,7 +91,7 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
 
     let mut msg_type = vec![0u8];
     stream.read_exact(&mut msg_type).await?;
-    println!(
+    debug!(
         "Incomming message of type: {}, value: {:?}",
         MessageType::from(msg_type[0]),
         msg_type
@@ -102,12 +104,12 @@ async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
 }
 
 async fn share_key(stream: &mut TcpStream) -> Result<(), HermodError> {
-    println!("Sharing key with client");
+    debug!("Sharing key with client");
     let mut buffer = vec![0u8; HERMOD_KS_INIT_LEN];
     stream.read_exact(&mut buffer).await?;
     let msg = Message::new(MessageType::ShareKeyInit, &buffer);
     share_key::receive_key(stream, &msg).await?;
-    println!("Shared key with client");
+    debug!("Shared key with client");
     Ok(())
 }
 
@@ -132,7 +134,7 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
         let msg = match endpoint.recv().await {
             Ok(msg) => msg,
             Err(e) => {
-                println!("{}", e);
+                error!("{}", e);
                 break;
             }
         };
@@ -147,6 +149,6 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
             _ => break, // log: Received message out of order {} type, Closing connection
         }
     }
-    println!("Closing connection");
+    debug!("Closing connection");
     Ok(())
 }
