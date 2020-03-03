@@ -155,7 +155,7 @@ impl Request {
                         drop(buf_writer);
                         async_std::fs::remove_file(path)
                             .await
-                            .expect("Could not remove previously open file");
+                            .expect("Could not remove the destination file");
                         return; // Received error, log error message, Close Connection, Remove file
                     }
                     MessageType::Payload => {
