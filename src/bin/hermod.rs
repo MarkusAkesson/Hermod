@@ -82,16 +82,17 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
             return;
         }
     };
-    let source = args
-        .value_of("source")
-        .expect("Obligatory argument 'source' missing, aborting");
+    let source: Vec<&str> = args
+        .values_of("source")
+        .expect("Obligatory argument 'source' missing, aborting")
+        .collect();
     let destination = args
         .value_of("destination")
         .expect("Obligatory argument 'destination' missing, aborting");
     let compression = args.is_present("compression");
 
     let cfg_builder = ClientConfigBuilder::new(&host)
-        .source(source)
+        .source(&source)
         .destination(destination)
         .compression(compression)
         .request(method);
@@ -130,7 +131,7 @@ fn gen_key(args: &clap::ArgMatches) {
 }
 
 fn share_key(args: &clap::ArgMatches) {
-    let name = args.value_of("name").expect("No naem provided, aborting");
+    let name = args.value_of("name").expect("No name provided, aborting");
     let force = args.is_present("force");
 
     if hermod::host::exists(&name) && !force {

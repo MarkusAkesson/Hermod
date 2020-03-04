@@ -20,31 +20,41 @@ impl<'hc> HermodClient<'hc> {
             let mut stream = match TcpStream::connect(self.config.get_hostname()).await {
                 Ok(stream) => stream,
                 Err(e) => {
-                    println!("{}", e);
+                    println!("Failed to connect to server: {}", e);
                     return;
                 }
             };
-            let peer = Peer::new_server_peer(self.config.get_alias())
-                .await
-                .unwrap();
+            let peer = match Peer::new_server_peer(self.config.get_alias()).await {
+                Ok(peer) => peer,
+                Err(_) => {
+                    println!(
+                        "Cound not find a server with that alias ({}). Aborting...",
+                        self.config.get_alias()
+                    );
+                    return;
+                }
+            };
             // Conduct noise handshake
+            // TODO: Better error message
             let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
                 .await
                 .unwrap();
             // Execute the request
-            let request = Request::new(&self.config);
-            match request.exec(&mut endpoint).await {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("{}", e);
-                    return;
-                }
-            };
+            for src in &self.config.source {
+                let request = Request::new(src, self.config.destination, self.config.request);
+                match request.exec(&mut endpoint).await {
+                    Ok(_) => (),
+                    Err(e) => {
+                        println!("Failed to execute the request: {}", e);
+                        return;
+                    }
+                };
+            }
             let msg = Message::new(MessageType::Close, &[]);
             match endpoint.send(&msg).await {
                 Ok(_) => (),
                 Err(e) => {
-                    println!("{}", e);
+                    println!("Failed to close the connection: {}", e);
                     return;
                 }
             };

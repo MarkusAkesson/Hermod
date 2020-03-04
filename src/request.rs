@@ -59,16 +59,14 @@ impl fmt::Display for Request {
 }
 
 impl Request {
-    pub fn new(config: &ClientConfig) -> Self {
-        let mut destination = PathBuf::from(config.destination);
-        let source = PathBuf::from(config.source);
+    pub fn new(source: &str, destination: &str, method: RequestMethod) -> Self {
+        let mut destination = PathBuf::from(destination);
+        let source = PathBuf::from(source);
         destination.push(source.file_name().unwrap());
-        println!("SRC: {:?}", source);
-        println!("DEST: {:?}", destination);
         Request {
             source,
             destination,
-            method: config.request,
+            method,
         }
     }
 

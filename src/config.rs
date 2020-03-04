@@ -27,7 +27,7 @@ pub struct ServerConfig {
 pub struct ClientConfigBuilder<'builder> {
     host: &'builder Host,
     compression: Option<bool>,
-    pub source: Option<&'builder str>,
+    pub source: Option<&'builder [&'builder str]>,
     pub destination: Option<&'builder str>,
     pub request: Option<RequestMethod>,
 }
@@ -35,7 +35,7 @@ pub struct ClientConfigBuilder<'builder> {
 pub struct ClientConfig<'builder> {
     host: &'builder Host,
     compression: bool,
-    pub source: &'builder str,
+    pub source: Vec<&'builder str>,
     pub destination: &'builder str,
     pub request: RequestMethod,
 }
@@ -76,7 +76,7 @@ impl<'builder> ClientConfigBuilder<'builder> {
         self
     }
 
-    pub fn source(mut self, source: &'builder str) -> Self {
+    pub fn source(mut self, source: &'builder [&'builder str]) -> Self {
         self.source = Some(source);
         self
     }
@@ -135,10 +135,11 @@ impl<'builder> ClientConfig<'builder> {
     pub fn new(
         host: &'builder Host,
         compression: bool,
-        source: &'builder str,
+        source: &'builder [&'builder str],
         destination: &'builder str,
         request: RequestMethod,
     ) -> Self {
+        let source = source.to_vec();
         ClientConfig {
             host,
             compression,
