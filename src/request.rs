@@ -1,6 +1,5 @@
-use crate::config::ClientConfig;
 use crate::consts::*;
-use crate::error::HermodError;
+use crate::error::{HermodError, HermodErrorKind};
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
@@ -11,9 +10,16 @@ use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter};
 use async_std::prelude::*;
 
+use indicatif::{ProgressBar, ProgressStyle};
+
 use log::info;
 
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Metadata {
+    pub len: u64,
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum RequestMethod {
@@ -73,8 +79,8 @@ impl Request {
     pub async fn respond(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         info!("Received new request: {}", self);
         match self.method {
-            RequestMethod::Upload => self.download(endpoint).await,
-            RequestMethod::Download => self.upload(endpoint).await,
+            RequestMethod::Upload => self.download(endpoint, false).await,
+            RequestMethod::Download => self.upload(endpoint, false).await,
         }
     }
 
@@ -85,21 +91,35 @@ impl Request {
         endpoint.send(&msg).await?;
         info!("Sending request");
         match self.method {
-            RequestMethod::Upload => self.upload(endpoint).await,
-            RequestMethod::Download => self.download(endpoint).await,
+            RequestMethod::Upload => self.upload(endpoint, true).await,
+            RequestMethod::Download => self.download(endpoint, true).await,
         }
     }
 
     // read a file and send it to a task responsible for sending the msg to peer
-    async fn upload(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        let file = File::open(&self.source.canonicalize()?).await?;
+    async fn upload(&self, endpoint: &mut Endpoint, is_client: bool) -> Result<(), HermodError> {
+        let path = self.source.canonicalize()?;
+        let file = File::open(&path).await?;
         let mut buf_reader = BufReader::new(file);
 
-        let (tx, rx) = async_std::sync::channel(100);
+        let len = async_std::fs::metadata(&path).await?.len();
+        let metadata = Metadata { len };
+        let enc_metadata = bincode::serialize(&metadata).unwrap();
+        let msg = Message::new(MessageType::Metadata, &enc_metadata);
+        endpoint.send(&msg).await?;
 
-        // Spawn a task that reads a file and sends it to a receiver, responisble for sending the
+        let filename = String::from(path.clone().file_name().unwrap().to_str().unwrap());
+        let (tx, rx) = async_std::sync::channel(100);
+        let pb = if is_client {
+            Some(create_progress_bar(len, &filename))
+        } else {
+            None
+        };
+        // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
         // messages to the endpoint/peer
+        // TODO: Send Err on error instead of unwrapping
         async_std::task::spawn(async move {
+            let mut read = 0u64;
             loop {
                 let mut buffer = Vec::with_capacity(MSG_PAYLOAD_LEN);
                 let n = buf_reader
@@ -108,6 +128,12 @@ impl Request {
                     .read_to_end(&mut buffer)
                     .await
                     .unwrap();
+
+                if let Some(ref pb) = pb {
+                    read += n as u64;
+                    pb.set_position(read);
+                }
+
                 if n == 0 {
                     // EOF reached
                     // Send EOF to peer
@@ -118,6 +144,10 @@ impl Request {
                 let msg = Message::new(MessageType::Payload, &buffer);
                 tx.send(msg).await;
             }
+            // TODO handle error
+            if let Some(ref pb) = pb {
+                pb.finish_with_message(format!("Uploaded: {:32} ", filename).as_str());
+            }
         });
 
         while let Some(msg) = rx.recv().await {
@@ -127,16 +157,30 @@ impl Request {
         Ok(())
     }
 
-    async fn download(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn download(&self, endpoint: &mut Endpoint, is_client: bool) -> Result<(), HermodError> {
         let path = self.destination.clone();
         match path.parent() {
             Some(path) => {
                 if !path.exists() {
-                    std::fs::create_dir_all(&path)?;
+                    async_std::fs::create_dir_all(&path).await?;
                 }
             }
             None => (),
         };
+
+        let msg = endpoint.recv().await?;
+        if msg.get_type() == MessageType::Error {
+            return Err(HermodError::new(HermodErrorKind::Other));
+        }
+        let metadata: Metadata = bincode::deserialize(msg.get_payload()).unwrap();
+        let filename = String::from(path.clone().file_name().unwrap().to_str().unwrap());
+
+        let pb = if is_client {
+            Some(create_progress_bar(metadata.len, &filename))
+        } else {
+            None
+        };
+
         let file = File::create(&path).await?;
         let mut buf_writer = BufWriter::new(file);
 
@@ -151,13 +195,15 @@ impl Request {
                 match msg.get_type() {
                     MessageType::Error => {
                         drop(buf_writer);
-                        async_std::fs::remove_file(path)
+                        async_std::fs::remove_file(&path)
                             .await
                             .expect("Could not remove the destination file");
+
                         return; // Received error, log error message, Close Connection, Remove file
                     }
                     MessageType::Payload => {
                         let payload = msg.get_payload();
+
                         buf_writer
                             .write(payload)
                             .await
@@ -178,17 +224,46 @@ impl Request {
         });
 
         // Recv messages until an Error or Close message has been received
+        let mut received = 0u64;
         loop {
             let msg = endpoint.recv().await?;
-            info!("REQUEST: Received new message of type: {}", msg.get_type());
-            if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
+            if msg.get_type() == MessageType::Error {
+                if let Some(ref pb) = pb {
+                    // TODO fix better error message
+                    pb.finish_with_message(format!("Failed to upload: {:32} ", filename).as_str());
+                }
                 tx.send(msg).await;
                 break;
+            } else if msg.get_type() == MessageType::EOF {
+                tx.send(msg).await;
+                break;
+            }
+
+            if let Some(ref pb) = pb {
+                received += msg.get_payload().len() as u64;
+                pb.set_position(received);
             }
 
             tx.send(msg).await;
         }
 
+        if let Some(ref pb) = pb {
+            pb.finish_with_message(format!("Downloaded: {:32} ", filename).as_str());
+        }
+
         Ok(())
     }
+}
+
+fn create_progress_bar(len: u64, file_name: &str) -> ProgressBar {
+    let pb = ProgressBar::new(len);
+    pb.set_style(
+            ProgressStyle::default_bar()
+                .template(
+                    "{msg} [{elapsed_precise}] [{bar:43.cyan/blue}] {bytes}/{total_bytes} {bytes_per_sec} ({eta})",
+                )
+                .progress_chars("#>-"),
+        );
+    pb.set_message(format!("Downloading: {:31}", file_name).as_str());
+    pb
 }

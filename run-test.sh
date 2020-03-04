@@ -19,7 +19,7 @@ hermod share-key --host $HOST_NAME --name $REMOTE
 pids=()
 for FILE in "${srcs[@]}"; do
     echo "Transfering $FILE"
-    hermod upload --source $SRC_DIR/$FILE --remote $REMOTE --destination $DEST_DIR &
+    hermod upload --source $SRC_DIR/$FILE --remote $REMOTE --destination $DEST_DIR
     pids+=($!)
 done
 
