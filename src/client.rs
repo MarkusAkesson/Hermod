@@ -39,24 +39,27 @@ impl<'hc> HermodClient<'hc> {
             let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
                 .await
                 .unwrap();
-            // Execute the request
-            for src in &self.config.source {
-                let request = Request::new(src, self.config.destination, self.config.request);
-                match request.exec(&mut endpoint).await {
-                    Ok(_) => (),
-                    Err(e) => {
-                        println!("Failed to execute the request: {}", e);
-                        return;
+            match Request::from(&self.config) {
+                Ok(requests) => {
+                    // Execute the requests
+                    for request in requests {
+                        match request.exec(&mut endpoint).await {
+                            Ok(_) => (),
+                            Err(e) => {
+                                // Close connection on first error
+                                // Try to send the other requests on error?
+                                eprintln!("Failed to execute the request: {}", e);
+                                break;
+                            }
+                        };
                     }
-                };
-            }
-            let msg = Message::new(MessageType::Close, &[]);
-            match endpoint.send(&msg).await {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("Failed to close the connection: {}", e);
-                    return;
                 }
+                Err(e) => eprintln!("{}", e),
+            };
+
+            match endpoint.close().await {
+                Ok(_) => (),
+                Err(e) => eprintln!("Failed to close the connection: {}", e),
             };
         });
     }

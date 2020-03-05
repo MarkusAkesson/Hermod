@@ -9,6 +9,7 @@ pub enum HermodErrorKind {
     OpenFile(std::io::Error),
     CreateFile(std::io::Error),
     ConnectionRefused(std::io::Error),
+    IsDir,
     UnknownMessage,
     UnknownIdentity,
     UnknownHost,
@@ -47,6 +48,7 @@ impl fmt::Display for HermodError {
             HermodErrorKind::ConnectionRefused(ref err) => {
                 write!(f, "Could not connect to host: {}", err)
             }
+            HermodErrorKind::IsDir => write!(f, "Expected a file, found a directory"),
             HermodErrorKind::UnknownMessage => write!(f, "Received unknown message"),
             HermodErrorKind::UnknownIdentity => {
                 write!(f, "Authentication attempt form unknown identity")

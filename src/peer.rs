@@ -2,14 +2,22 @@ use crate::config::{ClientConfig, SERVER_CONFIG};
 use crate::error::{HermodError, HermodErrorKind};
 use crate::host::{self, Host};
 use crate::identity::{Identity, KNOWN_CLIENTS};
-use crate::message::Message;
+use crate::message::{Message, MessageType};
 use crate::noise::NoiseStream;
+
+use std::fmt;
 
 use async_std::net::TcpStream;
 
 pub enum Peer {
     Identity(Identity),
     Host(Host),
+}
+
+impl fmt::Display for Peer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_id())
+    }
 }
 
 impl Peer {
@@ -87,6 +95,11 @@ impl<'e> Endpoint {
 
     pub fn get_peer(&self) -> &Peer {
         &self.peer
+    }
+
+    pub async fn close(&mut self) -> Result<(), HermodError> {
+        let msg = Message::new(MessageType::Close, &[]);
+        self.stream.send(&msg).await
     }
 
     pub async fn send(&mut self, msg: &Message) -> Result<(), HermodError> {
