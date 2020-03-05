@@ -13,13 +13,16 @@ use std::io::prelude::*;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str;
+use std::time::Duration;
 
 use async_std::io;
 use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use async_std::task;
 
-use log::{debug, error, info};
+use async_listen::{backpressure::Token, error_hint, ListenExt};
+
+use log::{debug, error, info, warn};
 
 pub struct HermodServer {}
 
@@ -29,11 +32,17 @@ impl<'hs> HermodServer {
             let listener: TcpListener = TcpListener::bind(ip).await.unwrap();
             info!("Listening on {}", listener.local_addr().unwrap());
 
-            let mut incoming = listener.incoming();
-            while let Some(stream) = incoming.next().await {
-                task::spawn(async {
-                    let mut stream = stream.unwrap();
-                    match handle_connection(&mut stream).await {
+            let mut incoming = listener
+                .incoming()
+                .log_warnings(|e| {
+                    warn!("Accept error: {}. SLeeping 0.5s. {}", e, error_hint(&e));
+                })
+                .handle_errors(Duration::from_millis(500))
+                .backpressure(100);
+
+            while let Some((token, mut stream)) = incoming.next().await {
+                task::spawn(async move {
+                    match handle_connection(&token, &mut stream).await {
                         Ok(_) => return,
                         Err(e) => {
                             error!("{}", e);
@@ -86,7 +95,7 @@ impl<'hs> HermodServer {
     }
 }
 
-async fn handle_connection(stream: &mut TcpStream) -> Result<(), HermodError> {
+async fn handle_connection(_token: &Token, stream: &mut TcpStream) -> Result<(), HermodError> {
     // log incomming packet from ip
 
     let mut msg_type = vec![0u8];
