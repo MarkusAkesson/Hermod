@@ -101,6 +101,5 @@ pub fn get_matches() -> clap::ArgMatches<'static> {
                 .value_name("SOURCE")
                 .takes_value(true)
                 .required(true)
-                .multiple(true)
                 .help("The source file or files to downlaod from the server"))).get_matches()
 }
