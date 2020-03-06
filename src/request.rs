@@ -7,11 +7,14 @@ use crate::peer::Endpoint;
 use std::fmt;
 use std::path::PathBuf;
 
-use async_std::fs::File;
+use async_std::fs::{self, DirEntry, File};
 use async_std::io::{BufReader, BufWriter};
 use async_std::path::Path;
 use async_std::prelude::*;
 use async_std::sync::{Receiver, Sender};
+
+use futures::future::{FutureExt, LocalBoxFuture};
+use futures::{stream, Stream, StreamExt};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -156,6 +159,17 @@ impl Request {
         }
     }
 
+    pub async fn exec_all(
+        endpoint: &mut Endpoint,
+        requests: &[Request],
+    ) -> Result<(), HermodError> {
+        for request in requests {
+            request.exec(endpoint).await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn exec(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         // TODO: move out of exec
         let enc_req = bincode::serialize(&self).unwrap();
@@ -174,6 +188,10 @@ impl Request {
 
         if path.as_path().is_dir() {
             // Upload directory recursively
+            // let files = read_dir().await?;
+            // async_std::task::spawn(
+            // async move{ send_dir_entries(endpoint, tx, &files).await },
+            // );
             unimplemented!()
         } else {
             // Move to own function
@@ -281,6 +299,7 @@ impl Request {
             self.download_file(endpoint, path, &metadata).await
         }
     }
+
     async fn download_dir(
         &self,
         endpoint: &mut Endpoint,
@@ -334,6 +353,37 @@ impl Request {
         pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_name).as_str());
         Ok(())
     }
+}
+
+async fn read_dir(
+    path: async_std::path::PathBuf,
+) -> impl Stream<Item = Result<Vec<DirEntry>, HermodError>> {
+    async fn read_dir_internal(
+        path: async_std::path::PathBuf,
+        to_visit: &mut Vec<async_std::path::PathBuf>,
+    ) -> Result<Vec<DirEntry>, HermodError> {
+        let mut dir = fs::read_dir(path).await?;
+        let mut files = Vec::new();
+
+        while let Ok(entry) = dir.next().await? {
+            if entry.metadata().await?.is_dir() {
+                to_visit.push(entry.path());
+            } else {
+                files.push(entry);
+            }
+        }
+        Ok(files)
+    }
+
+    stream::unfold(vec![path], |mut to_visit| async {
+        let path = to_visit.pop()?;
+        let file_stream = match read_dir_internal(path, &mut to_visit).await {
+            Ok(files) => stream::iter(files).map(Ok).left_stream(),
+            Err(e) => stream::once(async { Err(e) }).right_stream(),
+        };
+        Some((file_stream, to_visit))
+    })
+    .flatten()
 }
 
 async fn read_file(

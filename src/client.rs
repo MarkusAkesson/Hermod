@@ -42,16 +42,13 @@ impl<'hc> HermodClient<'hc> {
             match Request::from(&self.config) {
                 Ok(requests) => {
                     // Execute the requests
-                    for request in requests {
-                        match request.exec(&mut endpoint).await {
-                            Ok(_) => (),
-                            Err(e) => {
-                                // Close connection on first error
-                                // Try to send the other requests on error?
-                                eprintln!("Failed to execute the request: {}", e);
-                                break;
-                            }
-                        };
+                    match Request::exec_all(&mut endpoint, &requests).await {
+                        Ok(_) => (),
+                        Err(e) => {
+                            // Close connection on first error
+                            // Try to send the other requests on error?
+                            eprintln!("Failed to execute the request: {}", e);
+                        }
                     }
                 }
                 Err(e) => eprintln!("{}", e),
