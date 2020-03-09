@@ -37,9 +37,12 @@ pub struct Metadata {
 
 impl Metadata {
     pub async fn from_path(path: &PathBuf) -> Result<Self, HermodError> {
+        let metadata = async_std::fs::metadata(&path).await?;
+
         let file_name = String::from(path.clone().file_name().unwrap().to_str().unwrap());
-        let len = async_std::fs::metadata(&path).await?.len();
-        let dir = async_std::fs::metadata(&path).await?.is_dir();
+        let len = metadata.len();
+        let dir = metadata.is_dir();
+
         Ok(Metadata {
             len,
             dir,
