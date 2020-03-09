@@ -61,7 +61,7 @@ impl fmt::Display for MessageType {
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
             MessageType::EndOfRequest => write!(f, "EndOfRequest"),
-            MessageType::Unknown => write!(f, "{}", "Unknown"),
+            MessageType::Unknown => write!(f, "Unknown"),
         }
     }
 }
