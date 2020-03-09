@@ -18,11 +18,15 @@ use futures::{stream, Stream, StreamExt};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-use log::info;
+use log::{debug, error, info};
 
 use serde::{Deserialize, Serialize};
 
 use walkdir::WalkDir;
+
+pub struct PathList {
+    paths: Vec<String>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
@@ -95,12 +99,7 @@ impl Request {
     ) -> Result<Self, HermodError> {
         let mut destination = PathBuf::from(destination);
         let source = PathBuf::from(source);
-        // FIXME should not be file_name, should be last part of the path
         destination.push(source.file_name().unwrap());
-
-        if source.is_dir() {
-            return Err(HermodError::new(HermodErrorKind::IsDir));
-        }
 
         if method == RequestMethod::Upload {
             source
@@ -187,12 +186,15 @@ impl Request {
         let (tx, rx) = async_std::sync::channel(100);
 
         if path.as_path().is_dir() {
-            // Upload directory recursively
-            // let files = read_dir().await?;
-            // async_std::task::spawn(
-            // async move{ send_dir_entries(endpoint, tx, &files).await },
-            // );
-            unimplemented!()
+            let paths = read_dir(&path);
+            paths
+                .for_each(|entry| async {
+                    match entry {
+                        Ok(path) => debug!("{}", path.path().display()),
+                        Err(e) => error!("Encountered an error: {}", e),
+                    };
+                })
+                .await;
         } else {
             // Move to own function
             let file = File::open(&path).await?;
@@ -355,9 +357,9 @@ impl Request {
     }
 }
 
-async fn read_dir(
-    path: async_std::path::PathBuf,
-) -> impl Stream<Item = Result<Vec<DirEntry>, HermodError>> {
+fn read_dir(
+    path: impl Into<async_std::path::PathBuf>,
+) -> impl Stream<Item = Result<DirEntry, HermodError>> {
     async fn read_dir_internal(
         path: async_std::path::PathBuf,
         to_visit: &mut Vec<async_std::path::PathBuf>,
@@ -365,7 +367,8 @@ async fn read_dir(
         let mut dir = fs::read_dir(path).await?;
         let mut files = Vec::new();
 
-        while let Ok(entry) = dir.next().await? {
+        while let Some(entry) = dir.next().await {
+            let entry = entry?;
             if entry.metadata().await?.is_dir() {
                 to_visit.push(entry.path());
             } else {
@@ -375,7 +378,7 @@ async fn read_dir(
         Ok(files)
     }
 
-    stream::unfold(vec![path], |mut to_visit| async {
+    stream::unfold(vec![path.into()], |mut to_visit| async {
         let path = to_visit.pop()?;
         let file_stream = match read_dir_internal(path, &mut to_visit).await {
             Ok(files) => stream::iter(files).map(Ok).left_stream(),

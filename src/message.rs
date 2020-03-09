@@ -18,7 +18,7 @@ pub enum MessageType {
     ShareKeyResp,
     ShareIdentity,
     ShareHost,
-    EndOfRequest,
+    EndOfResponse,
     Unknown,
 }
 
@@ -38,7 +38,7 @@ impl fmt::Debug for MessageType {
             MessageType::ShareKeyResp => write!(f, "ShareKeyResp"),
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
-            MessageType::EndOfRequest => write!(f, "EndOfRequest"),
+            MessageType::EndOfResponse => write!(f, "EndOfResponse"),
             MessageType::Unknown => write!(f, "Unknown"),
         }
     }
@@ -60,7 +60,7 @@ impl fmt::Display for MessageType {
             MessageType::ShareKeyResp => write!(f, "ShareKeyResp"),
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
-            MessageType::EndOfRequest => write!(f, "EndOfRequest"),
+            MessageType::EndOfResponse => write!(f, "EndOfResponse"),
             MessageType::Unknown => write!(f, "{}", "Unknown"),
         }
     }
@@ -82,7 +82,7 @@ impl From<u8> for MessageType {
             11 => MessageType::ShareKeyResp,
             12 => MessageType::ShareIdentity,
             13 => MessageType::ShareHost,
-            14 => MessageType::EndOfRequest,
+            14 => MessageType::EndOfResponse,
             _ => MessageType::Unknown,
         }
     }
