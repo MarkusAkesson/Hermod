@@ -4,7 +4,8 @@ mkdir sources
 mkdir output
 
 SRC_DIR="/sources"
-DEST_DIR="/output"
+OUT_DIR="/output"
+
 REMOTE="test"
 HOST_NAME=hermod-server
 
@@ -16,12 +17,22 @@ set -e
 hermod share-key --host $HOST_NAME --name $REMOTE
 
 # Upload 3 files
-echo "Transfering $srcs[@]"
-hermod upload --source $SRC_DIR/ --remote $REMOTE --destination $DEST_DIR
+echo "Uploading $srcs[@]"
+hermod upload --source $SRC_DIR/ --remote $REMOTE --destination $OUT_DIR
 
-# Await processes to finish
-for pid in ${pids[*]}; do
-    wait $pid
+echo "Downloading ${srcs[@]}"
+hermod download --source $OUT_DIR/ --remote $REMOTE --destination $OUT_DIR
+
+for FILE in "${srcs[@]}"; do
+    printf "Checking $FILE: "
+
+    expected=$(b3sum --no-names $SRC_DIR/$FILE)
+    received=$(b3sum --no-names $OUT_DIR/$FILE)
+
+    if [ "$expected" = "$received" ]; then
+        printf "Ok {$expected}\n"
+    else
+        printf "Failed\n"
+    fi
+
 done
-
-echo "Transfered ${srcs[@]}"
