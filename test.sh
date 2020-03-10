@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Exit on first error
-set -e
+trap cleanup EXIT
 
 # Build server and client
 
@@ -25,8 +25,10 @@ sleep 2
 echo "Starting client"
 docker run -it --name hermod-client --network test hermod-client
 
-# Cleaning up
-echo "Cleaning up"
-docker stop hermod-server &>/dev/null
-docker rm hermod-client &>/dev/null
-docker network rm test &>/dev/null
+function cleanup() {
+    # Cleaning up
+    echo "Cleaning up"
+    docker stop hermod-server &>/dev/null
+    docker rm hermod-client &>/dev/null
+    docker network rm test &>/dev/null
+}

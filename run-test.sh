@@ -17,11 +17,13 @@ set -e
 hermod share-key --host $HOST_NAME --name $REMOTE
 
 # Upload 3 files
-echo "Uploading $srcs[@]"
-hermod upload --source $SRC_DIR/ --remote $REMOTE --destination $OUT_DIR
+echo "Uploading ${srcs[@]}"
+hermod upload --source $SRC_DIR --remote $REMOTE --destination $OUT_DIR
+
+sleep 2
 
 echo "Downloading ${srcs[@]}"
-hermod download --source $OUT_DIR/ --remote $REMOTE --destination $OUT_DIR
+hermod download --source $OUT_DIR --remote $REMOTE --destination $OUT_DIR
 
 for FILE in "${srcs[@]}"; do
     printf "Checking $FILE: "
