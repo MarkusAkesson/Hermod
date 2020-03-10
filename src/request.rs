@@ -230,11 +230,7 @@ impl Request {
         if path.as_path().is_dir() {
             let metadata = Metadata::from_path(&path).await?;
             send_metadata(&metadata, endpoint).await?;
-
-            let paths = read_dir(&path);
-            let mut paths = PathList::from_stream(paths).await;
-
-            send_path_list(&paths, endpoint).await?;
+            send_dir_content(path, endpoint).await?;
         } else {
             // Move to own function
             let file = File::open(&path).await?;
@@ -554,11 +550,16 @@ async fn send_metadata(metadata: &Metadata, endpoint: &mut Endpoint) -> Result<(
     Ok(())
 }
 
-async fn send_path_list(paths: &mut PathList, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+async fn send_dir_content(
+    path: impl Into<async_std::path::PathBuf>,
+    endpoint: &mut Endpoint,
+) -> Result<(), HermodError> {
+    let paths = read_dir(path);
+    let mut paths = PathList::from_stream(paths).await.into_iter();
     let mut payload = Vec::new();
     let mut len = 0;
 
-    while let Some(path) = paths.into_iter().next() {
+    while let Some(path) = paths.next() {
         if len + path.len() < PACKET_MAXLENGTH {
             len += path.len();
             payload.push(path);
