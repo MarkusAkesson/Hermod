@@ -1,8 +1,5 @@
 #!/bin/bash
 
-mkdir sources
-mkdir output
-
 SRC_DIR="/sources"
 OUT_DIR="/output"
 
