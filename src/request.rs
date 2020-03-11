@@ -138,7 +138,6 @@ impl Request {
     ) -> Result<Self, HermodError> {
         let mut destination = PathBuf::from(destination);
         let source = PathBuf::from(source);
-        destination.push(source.file_name().unwrap());
 
         if method == RequestMethod::Upload {
             source
@@ -159,6 +158,7 @@ impl Request {
         method: RequestMethod,
     ) -> Result<Vec<Request>, HermodError> {
         let mut requests = Vec::new();
+
         for entry in WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             if !path.is_dir() {
@@ -276,12 +276,14 @@ impl Request {
     }
 
     async fn download_server(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        let path = async_std::path::PathBuf::from(&self.destination);
-        if let Some(path) = path.parent() {
-            if !path.exists().await {
-                async_std::fs::create_dir_all(&path).await?;
-            }
-        };
+        let mut path = async_std::path::PathBuf::from(&self.destination);
+
+        if !path.exists().await {
+            async_std::fs::create_dir_all(&path).await?;
+        }
+
+        path.push(self.source.file_name().unwrap());
+        println!("{:?}", &path);
 
         let file = File::create(&path).await?;
         let buf_writer = BufWriter::new(file);
@@ -306,13 +308,6 @@ impl Request {
     }
 
     async fn download_client(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        let path = async_std::path::PathBuf::from(&self.destination);
-        if let Some(path) = path.parent() {
-            if !path.exists().await {
-                async_std::fs::create_dir_all(&path).await?;
-            }
-        };
-
         // Recv metadata about the file that is going to be transmitted
         let msg = endpoint.recv().await?;
 
@@ -330,7 +325,7 @@ impl Request {
             );
             self.download_dir(endpoint).await
         } else {
-            self.download_file(endpoint, path, &metadata).await
+            self.download_file(endpoint, &metadata).await
         }
     }
 
@@ -365,12 +360,6 @@ impl Request {
 
     async fn get_file(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         self.send_request(endpoint).await?;
-        let path = async_std::path::PathBuf::from(&self.destination);
-        if let Some(path) = path.parent() {
-            if !path.exists().await {
-                async_std::fs::create_dir_all(&path).await?;
-            }
-        };
 
         // Recv metadata about the file that is going to be transmitted
         let msg = endpoint.recv().await?;
@@ -385,24 +374,28 @@ impl Request {
             return Err(HermodError::new(HermodErrorKind::IsDir));
         }
 
-        self.download_file(endpoint, path, &metadata).await
+        self.download_file(endpoint, &metadata).await
     }
 
     async fn download_file(
         &self,
         endpoint: &mut Endpoint,
-        path: async_std::path::PathBuf,
         metadata: &Metadata,
     ) -> Result<(), HermodError> {
-        // download file
-        // Should probably be a function
+        let mut path = async_std::path::PathBuf::from(&self.destination);
 
-        let pb = create_progress_bar(&metadata);
+        if !path.exists().await {
+            async_std::fs::create_dir_all(&path).await?;
+        }
+
+        path.push(self.source.file_name().unwrap());
 
         let file = File::create(&path).await?;
         let buf_writer = BufWriter::new(file);
 
         let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::sync::channel(100);
+
+        let pb = create_progress_bar(&metadata, "Downloading");
 
         // Spawn a task that write the incoming payload to disk
         async_std::task::spawn(async move { write_file(buf_writer, rx, path.as_path()).await });
@@ -473,7 +466,7 @@ async fn read_file(
     is_client: bool,
 ) {
     let pb = if is_client {
-        Some(create_progress_bar(metadata))
+        Some(create_progress_bar(metadata, "Uploading"))
     } else {
         None
     };
@@ -587,7 +580,7 @@ async fn send_dir_content(
     Ok(())
 }
 
-fn create_progress_bar(metadata: &Metadata) -> ProgressBar {
+fn create_progress_bar(metadata: &Metadata, msg: &str) -> ProgressBar {
     let pb = ProgressBar::new(metadata.len);
     pb.set_style(
             ProgressStyle::default_bar()
@@ -596,6 +589,6 @@ fn create_progress_bar(metadata: &Metadata) -> ProgressBar {
                 )
                 .progress_chars("#>-"),
         );
-    pb.set_message(format!("Downloading: {:31}", metadata.file_name).as_str());
+    pb.set_message(format!("{}: {:31}", msg, metadata.file_name).as_str());
     pb
 }
