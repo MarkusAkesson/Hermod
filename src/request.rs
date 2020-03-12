@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use async_std::fs::{self, DirEntry, File};
 use async_std::io::{BufReader, BufWriter};
-use async_std::path::Path;
+use async_std::path::{Path, StripPrefixError};
 use async_std::prelude::*;
 use async_std::sync::{Receiver, Sender};
 
@@ -43,15 +43,15 @@ impl PathList {
         PathList { paths: Vec::new() }
     }
 
-    pub async fn from_stream(stream: impl Stream<Item = Result<DirEntry, HermodError>>) -> Self {
-        let paths: Vec<String> = stream
-            .map(|entry| -> Result<String, HermodError> {
-                let path = String::from(entry?.path().to_str().unwrap());
+    pub fn from(paths: &[async_std::path::PathBuf]) -> Self {
+        let paths: Vec<String> = paths
+            .into_iter()
+            .map(|path| -> Result<String, HermodError> {
+                let path = String::from(path.to_string_lossy());
                 Ok(path)
             })
-            .filter_map(|e| async { e.ok() })
-            .collect::<Vec<String>>()
-            .await;
+            .filter_map(|e| e.ok())
+            .collect::<Vec<String>>();
         PathList { paths }
     }
 
@@ -102,14 +102,14 @@ impl fmt::Display for RequestMethod {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Serialize, Deserialize)]
 pub struct Request {
     source: PathBuf,
     destination: PathBuf,
     method: RequestMethod,
 }
 
-impl fmt::Display for Request {
+impl fmt::Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.method {
             RequestMethod::Upload => write!(
@@ -130,13 +130,30 @@ impl fmt::Display for Request {
     }
 }
 
+impl fmt::Display for Request {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.method {
+            RequestMethod::Upload => write!(
+                f,
+                "{} {:?} to {}",
+                self.method,
+                self.source.file_name().unwrap(),
+                self.destination.as_path().display(),
+            ),
+            RequestMethod::Download => {
+                write!(f, "{} {}", self.method, self.source.as_path().display(),)
+            }
+        }
+    }
+}
+
 impl Request {
     pub fn file(
         source: &str,
         destination: &str,
         method: RequestMethod,
     ) -> Result<Self, HermodError> {
-        let mut destination = PathBuf::from(destination);
+        let destination = PathBuf::from(destination);
         let source = PathBuf::from(source);
 
         if method == RequestMethod::Upload {
@@ -152,6 +169,7 @@ impl Request {
         })
     }
 
+    // FIXME Look into a better way to handle directories
     pub fn dir(
         source: &str,
         destination: &str,
@@ -159,10 +177,24 @@ impl Request {
     ) -> Result<Vec<Request>, HermodError> {
         let mut requests = Vec::new();
 
-        for entry in WalkDir::new(source).into_iter().filter_map(|e| e.ok()) {
+        let source = PathBuf::from(source);
+        let file_name = source.file_name();
+
+        for entry in WalkDir::new(&source).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
             if !path.is_dir() {
-                requests.push(Request::file(&path.to_string_lossy(), destination, method)?);
+                let mut destination = PathBuf::from(destination);
+                if let Some(dir) = file_name {
+                    destination.push(dir);
+                }
+                let mut dest = path.strip_prefix(&source).unwrap().to_path_buf();
+                dest.pop(); // Pop filename
+                destination.push(dest);
+                requests.push(Request {
+                    source: path.to_path_buf(),
+                    destination,
+                    method,
+                });
             }
         }
         Ok(requests)
@@ -349,8 +381,23 @@ impl Request {
             self.source
         );
 
+        let file_name = self.source.file_name();
         for path in paths {
-            let request = Request::file(&path, &self.destination.to_str().unwrap(), self.method)
+            println!("{}", path);
+            let mut destination = self.destination.clone();
+            if let Some(dir) = file_name {
+                destination.push(dir);
+            }
+            let mut dir_diff = PathBuf::from(&path)
+                .strip_prefix(&self.source)
+                .unwrap()
+                .to_path_buf();
+            dir_diff.pop();
+            println!("PATH: {}", path);
+            println!("DIR_DIFF: {:#?}", dir_diff);
+            destination.push(dir_diff);
+            println!("DESTINATION: {:#?}", destination);
+            let request = Request::file(&path, destination.to_str().unwrap(), self.method)
                 .expect(&format!("Failed to create request for {}", path));
             request.get_file(endpoint).await?;
         }
@@ -428,7 +475,7 @@ impl Request {
 }
 
 fn read_dir(
-    path: impl Into<async_std::path::PathBuf>,
+    path: &impl Into<async_std::path::PathBuf>,
 ) -> impl Stream<Item = Result<DirEntry, HermodError>> {
     async fn read_dir_internal(
         path: async_std::path::PathBuf,
@@ -544,11 +591,23 @@ async fn send_metadata(metadata: &Metadata, endpoint: &mut Endpoint) -> Result<(
 }
 
 async fn send_dir_content(
-    path: impl Into<async_std::path::PathBuf>,
+    path: &impl Into<async_std::path::PathBuf>,
     endpoint: &mut Endpoint,
 ) -> Result<(), HermodError> {
     let paths = read_dir(path);
-    let mut paths = PathList::from_stream(paths).await.into_iter();
+    let paths = paths
+        .map(|entry| -> Result<async_std::path::PathBuf, HermodError> {
+            let path_buf = entry?
+                .path()
+                .strip_prefix(async_std::path::PathBuf::from(path.into()))
+                .unwrap()
+                .to_path_buf();
+            Ok(path_buf)
+        })
+        .filter_map(|p| async { p.ok() })
+        .collect::<Vec<async_std::path::PathBuf>>()
+        .await;
+    let mut paths = PathList::from(paths.as_slice()).into_iter();
     let mut payload = Vec::new();
     let mut len = 0;
 
