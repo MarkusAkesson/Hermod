@@ -20,13 +20,13 @@ hermod upload --source $SRC_DIR --remote $REMOTE --destination $OUT_DIR
 sleep 2
 
 echo "Downloading ${srcs[@]}"
-hermod download --source $OUT_DIR --remote $REMOTE --destination $OUT_DIR
+hermod download --source $OUT_DIR$SRC_DIR --remote $REMOTE --destination $OUT_DIR
 
 for FILE in "${srcs[@]}"; do
     printf "Checking $FILE: "
 
     expected=$(b3sum --no-names $SRC_DIR/$FILE)
-    received=$(b3sum --no-names $OUT_DIR/$FILE)
+    received=$(b3sum --no-names $OUT_DIR$SRC_DIR/$FILE)
 
     if [ "$expected" = "$received" ]; then
         printf "Ok {$expected}\n"

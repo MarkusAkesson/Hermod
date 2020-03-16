@@ -67,7 +67,7 @@ impl PathList {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
     pub len: u64,
-    pub file_name: String,
+    pub file_path: String,
     pub dir: bool,
 }
 
@@ -75,15 +75,19 @@ impl Metadata {
     pub async fn from_path(path: &PathBuf) -> Result<Self, HermodError> {
         let metadata = async_std::fs::metadata(&path).await?;
 
-        let file_name = String::from(path.clone().file_name().unwrap().to_str().unwrap());
+        let file_path = String::from(path.canonicalize().unwrap().to_str().unwrap());
         let len = metadata.len();
         let dir = metadata.is_dir();
 
         Ok(Metadata {
             len,
             dir,
-            file_name,
+            file_path,
         })
+    }
+
+    pub fn path(&self) -> &str {
+        &self.file_path
     }
 }
 
@@ -262,7 +266,7 @@ impl Request {
         if path.as_path().is_dir() {
             let metadata = Metadata::from_path(&path).await?;
             send_metadata(&metadata, endpoint).await?;
-            send_dir_content(path, endpoint).await?;
+            send_dir_content(async_std::path::PathBuf::from(path), endpoint).await?;
         } else {
             // Move to own function
             let file = File::open(&path).await?;
@@ -355,13 +359,17 @@ impl Request {
                 "Retriveing information about the directory: {}.",
                 self.source.as_path().display()
             );
-            self.download_dir(endpoint).await
+            self.download_dir(endpoint, &metadata).await
         } else {
             self.download_file(endpoint, &metadata).await
         }
     }
 
-    async fn download_dir(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn download_dir(
+        &self,
+        endpoint: &mut Endpoint,
+        metadata: &Metadata,
+    ) -> Result<(), HermodError> {
         let mut paths = PathList::new();
         loop {
             let msg = endpoint.recv().await?;
@@ -382,14 +390,17 @@ impl Request {
         );
 
         let file_name = self.source.file_name();
+        let src_base_path = PathBuf::from(metadata.path());
+
         for path in paths {
+            println!("{:#?}", self.source);
             println!("{}", path);
             let mut destination = self.destination.clone();
             if let Some(dir) = file_name {
                 destination.push(dir);
             }
             let mut dir_diff = PathBuf::from(&path)
-                .strip_prefix(&self.source)
+                .strip_prefix(&src_base_path)
                 .unwrap()
                 .to_path_buf();
             dir_diff.pop();
@@ -454,7 +465,7 @@ impl Request {
             if msg.get_type() == MessageType::Error {
                 // TODO fix better error message
                 pb.finish_with_message(
-                    format!("Failed to download: {:32} ", metadata.file_name).as_str(),
+                    format!("Failed to download: {:32} ", metadata.file_path).as_str(),
                 );
                 tx.send(msg).await;
                 break;
@@ -469,18 +480,18 @@ impl Request {
             tx.send(msg).await;
         }
 
-        pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_name).as_str());
+        pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_path).as_str());
         Ok(())
     }
 }
 
 fn read_dir(
-    path: &impl Into<async_std::path::PathBuf>,
-) -> impl Stream<Item = Result<DirEntry, HermodError>> {
+    path: async_std::path::PathBuf,
+) -> impl Stream<Item = Result<async_std::path::PathBuf, HermodError>> {
     async fn read_dir_internal(
         path: async_std::path::PathBuf,
         to_visit: &mut Vec<async_std::path::PathBuf>,
-    ) -> Result<Vec<DirEntry>, HermodError> {
+    ) -> Result<Vec<async_std::path::PathBuf>, HermodError> {
         let mut dir = fs::read_dir(path).await?;
         let mut files = Vec::new();
 
@@ -489,13 +500,13 @@ fn read_dir(
             if entry.metadata().await?.is_dir() {
                 to_visit.push(entry.path());
             } else {
-                files.push(entry);
+                files.push(entry.path());
             }
         }
         Ok(files)
     }
 
-    stream::unfold(vec![path.into()], |mut to_visit| async {
+    stream::unfold(vec![path], |mut to_visit| async {
         let path = to_visit.pop()?;
         let file_stream = match read_dir_internal(path, &mut to_visit).await {
             Ok(files) => stream::iter(files).map(Ok).left_stream(),
@@ -546,7 +557,7 @@ async fn read_file(
 
     // TODO handle error
     if let Some(ref pb) = pb {
-        pb.finish_with_message(format!("Uploaded: {:32} ", &metadata.file_name).as_str());
+        pb.finish_with_message(format!("Uploaded: {:32} ", &metadata.file_path).as_str());
     }
 }
 
@@ -591,19 +602,20 @@ async fn send_metadata(metadata: &Metadata, endpoint: &mut Endpoint) -> Result<(
 }
 
 async fn send_dir_content(
-    path: &impl Into<async_std::path::PathBuf>,
+    path: async_std::path::PathBuf,
     endpoint: &mut Endpoint,
 ) -> Result<(), HermodError> {
-    let paths = read_dir(path);
+    let base = path.clone();
+    let paths = read_dir(path.into());
     let paths = paths
-        .map(|entry| -> Result<async_std::path::PathBuf, HermodError> {
-            let path_buf = entry?
-                .path()
-                .strip_prefix(async_std::path::PathBuf::from(path.into()))
-                .unwrap()
-                .to_path_buf();
-            Ok(path_buf)
-        })
+        //.map(|entry| -> Result<async_std::path::PathBuf, HermodError> {
+        //    dbg!(&entry);
+        //    let path_buf = entry?
+        //        .strip_prefix(async_std::path::PathBuf::from(&base))
+        //        .unwrap()
+        //        .to_path_buf();
+        //    Ok(path_buf)
+        //})
         .filter_map(|p| async { p.ok() })
         .collect::<Vec<async_std::path::PathBuf>>()
         .await;
@@ -648,6 +660,6 @@ fn create_progress_bar(metadata: &Metadata, msg: &str) -> ProgressBar {
                 )
                 .progress_chars("#>-"),
         );
-    pb.set_message(format!("{}: {:31}", msg, metadata.file_name).as_str());
+    pb.set_message(format!("{}: {:31}", msg, metadata.file_path).as_str());
     pb
 }
