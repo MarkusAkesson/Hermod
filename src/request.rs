@@ -319,7 +319,6 @@ impl Request {
         }
 
         path.push(self.source.file_name().unwrap());
-        println!("{:?}", &path);
 
         let file = File::create(&path).await?;
         let buf_writer = BufWriter::new(file);
@@ -393,8 +392,6 @@ impl Request {
         let src_base_path = PathBuf::from(metadata.path());
 
         for path in paths {
-            println!("{:#?}", self.source);
-            println!("{}", path);
             let mut destination = self.destination.clone();
             if let Some(dir) = file_name {
                 destination.push(dir);
@@ -404,10 +401,7 @@ impl Request {
                 .unwrap()
                 .to_path_buf();
             dir_diff.pop();
-            println!("PATH: {}", path);
-            println!("DIR_DIFF: {:#?}", dir_diff);
             destination.push(dir_diff);
-            println!("DESTINATION: {:#?}", destination);
             let request = Request::file(&path, destination.to_str().unwrap(), self.method)
                 .expect(&format!("Failed to create request for {}", path));
             request.get_file(endpoint).await?;
