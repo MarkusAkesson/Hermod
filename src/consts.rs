@@ -8,6 +8,9 @@ pub const MSG_TYPE_LEN: usize = 1;
 pub const MSG_LENGTH_LEN: usize = 4;
 pub const MSG_PAYLOAD_LEN: usize = PACKET_MAXLENGTH - MSG_HEADER_LEN - MAC_LENGTH;
 
+pub const AEAD_TAG_LEN: usize = 16;
+pub const REKEY_THRESHOLD: usize = 1073741824; // 1 GB
+
 pub const ID_TOKEN_LEN: u8 = 8;
 pub const ID_TOKEN_B64LEN: u8 = 12;
 

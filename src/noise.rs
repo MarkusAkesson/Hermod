@@ -6,6 +6,8 @@ use crate::peer::Peer;
 
 use snow::{self, Builder, HandshakeState, TransportState};
 
+use log::info;
+
 use async_std::net::TcpStream;
 use async_std::prelude::*;
 
@@ -22,6 +24,7 @@ pub enum NoiseMode {
 pub struct NoiseStream {
     stream: TcpStream,
     noise: TransportState,
+    bytes_sent: usize,
 }
 
 impl<'cfg> NoiseStream {
@@ -41,6 +44,7 @@ impl<'cfg> NoiseStream {
         Ok(NoiseStream {
             stream: stream.to_owned(),
             noise,
+            bytes_sent: 0,
         })
     }
 
@@ -62,6 +66,7 @@ impl<'cfg> NoiseStream {
         Ok(NoiseStream {
             stream: stream.to_owned(),
             noise,
+            bytes_sent: 0,
         })
     }
 
@@ -72,13 +77,23 @@ impl<'cfg> NoiseStream {
     pub async fn send(&mut self, msg: &Message) -> Result<(), HermodError> {
         let msg_type = msg.get_type();
         let plaintext = msg.get_payload();
-        let mut ciphertext = vec![0u8; plaintext.len() + 1000];
+        let mut ciphertext = vec![0u8; plaintext.len() + AEAD_TAG_LEN];
+
+        // Generate new encryption key after sending 1GB of data
+        if self.bytes_sent + ciphertext.len() > REKEY_THRESHOLD {
+            self.noise.rekey_outgoing();
+            self.stream.write_all(&[MessageType::Rekey as u8]).await?;
+            self.bytes_sent = 0;
+            info!("new key needed");
+        }
+
         let cipher_len = self.noise.write_message(plaintext, &mut ciphertext)?;
         self.stream.write_all(&[msg_type as u8]).await?;
         self.stream
             .write_all(&(cipher_len as u32).to_be_bytes())
             .await?;
         self.stream.write_all(&ciphertext[..cipher_len]).await?;
+        self.bytes_sent += cipher_len;
         Ok(())
     }
 
@@ -87,6 +102,10 @@ impl<'cfg> NoiseStream {
         self.stream.read_exact(&mut msg_type).await?;
         if msg_type[0] == MessageType::Close as u8 {
             return Ok(Message::new(MessageType::Close, &[]));
+        } else if msg_type[0] == MessageType::Rekey as u8 {
+            self.stream.read_exact(&mut msg_type).await?;
+            self.noise.rekey_incoming();
+            info!("new key needed");
         }
         let mut length = [0u8; MSG_LENGTH_LEN];
         self.stream.read_exact(&mut length).await?;

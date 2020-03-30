@@ -19,6 +19,7 @@ pub enum MessageType {
     ShareIdentity,
     ShareHost,
     EndOfResponse,
+    Rekey,
     Unknown,
 }
 
@@ -39,6 +40,7 @@ impl fmt::Debug for MessageType {
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
             MessageType::EndOfResponse => write!(f, "EndOfResponse"),
+            MessageType::Rekey => write!(f, "Rekey"),
             MessageType::Unknown => write!(f, "Unknown"),
         }
     }
@@ -61,7 +63,8 @@ impl fmt::Display for MessageType {
             MessageType::ShareIdentity => write!(f, "ShareIdentity"),
             MessageType::ShareHost => write!(f, "ShareHost"),
             MessageType::EndOfResponse => write!(f, "EndOfResponse"),
-            MessageType::Unknown => write!(f, "{}", "Unknown"),
+            MessageType::Rekey => write!(f, "Rekey"),
+            MessageType::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -83,6 +86,7 @@ impl From<u8> for MessageType {
             12 => MessageType::ShareIdentity,
             13 => MessageType::ShareHost,
             14 => MessageType::EndOfResponse,
+            15 => MessageType::EndOfResponse,
             _ => MessageType::Unknown,
         }
     }
