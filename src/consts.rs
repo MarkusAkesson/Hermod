@@ -5,7 +5,7 @@ pub const HERMOD_PORT: u16 = 4444;
 
 pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
-pub const MSG_LENGTH_LEN: usize = 4;
+pub const MSG_LENGTH_LEN: usize = 2;
 pub const MSG_PAYLOAD_LEN: usize = PACKET_MAXLENGTH - MSG_HEADER_LEN - MAC_LENGTH;
 
 pub const AEAD_TAG_LEN: usize = 16;
