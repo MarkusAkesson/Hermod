@@ -72,7 +72,7 @@ pub fn share_key(host: Host) {
             .write_to_file()
             .map_err(|err| HermodError::new(HermodErrorKind::IoError(err)));
         match res {
-            Ok(()) => println!("Succesfully shared keys with remote"),
+            Ok(()) => println!("Succesfully shared keys with the remote"),
             Err(e) => eprintln!("Failed to write configuration to file: {}", e),
         }
     });
@@ -102,7 +102,7 @@ async fn recv_identity(
             .to_owned(),
         noise
             .get_remote_static()
-            .expect("Failed to receive the remotes public static key")
+            .expect("Failed to read the remotes public static key")
             .to_vec(),
     );
     stream.write_all(&[MessageType::Okey as u8]).await?;
