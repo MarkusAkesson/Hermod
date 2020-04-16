@@ -15,7 +15,7 @@ hermod share-key --host $HOST_NAME --name $REMOTE
 
 # Upload 3 files
 echo "Uploading ${srcs[@]}"
-hermod upload --source $SRC_DIR --remote $REMOTE --destination $OUT_DIR
+hyperfine hermod upload --source $SRC_DIR --remote $REMOTE --destination $OUT_DIR
 
 sleep 2
 

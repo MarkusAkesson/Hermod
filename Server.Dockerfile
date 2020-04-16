@@ -1,4 +1,4 @@
-FROM rust:1.41 as builder
+FROM rust:1.42 as builder
 
 WORKDIR /usr/src/Hermod
 COPY Cargo.toml .
