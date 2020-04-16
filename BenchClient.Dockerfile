@@ -22,6 +22,8 @@ RUN fallocate -l 1G   large.file && \
     fallocate -l 500M medium.file && \
     fallocate -l 10K  small.file
 
+COPY src/ src/.
+
 WORKDIR /usr/src/bench
 COPY run-bench.sh .
 RUN chmod u+x run-bench.sh
