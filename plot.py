@@ -17,7 +17,7 @@ def load_means(files):
     return means
 
 
-labels = ['1G', '500M', '10K', 'Hermod source']
+labels = ['1G', '500M', '10K', 'Hermod source code']
 data_files = ['output/hermod.json', 'output/scp.json', 'output/sftp.json']
 means = load_means(data_files)
 hermod_means = means[0]
@@ -34,7 +34,7 @@ rects3 = ax.bar(x + width, sftp_means, width, label='sftp')
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Seconds')
-ax.set_xlabel('File')
+ax.set_xlabel('File size')
 ax.set_title('Comparison between Hermod, scp and sftp')
 ax.set_xticks(x)
 ax.set_xticklabels(labels)
