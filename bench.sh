@@ -23,11 +23,17 @@ sleep 2
 
 # Start client
 echo "Starting client"
-docker run -it --rm --name bench-client --network bench bench-client
+docker run -it --name bench-client --network bench bench-client
+
+# Fetch benchmark resuslts
+docker cp bench-client:/output/hermod.json output/hermod.json
+docker cp bench-client:/output/scp.json output/scp.json
+docker cp bench-client:/output/sftp.json output/sftp.json
 
 function cleanup() {
     # Cleaning up
     echo "Cleaning up"
     docker stop bench-server &>/dev/null
+    docker rm bench-client
     docker network rm bench &>/dev/null
 }

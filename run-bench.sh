@@ -14,7 +14,7 @@ OUT_DIR="/output"
 REMOTE="bench"
 HOST_NAME=bench-server
 
-srcs=(large.file medium.file small.file)
+srcs=large.file,medium.file,small.file,src
 
 
 # Share keys with server
@@ -22,28 +22,11 @@ hermod share-key --host $HOST_NAME --name $REMOTE
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa
 ssh-copy-id -i ~/.ssh/id_rsa root@$HOST_NAME
 
-# Upload 3 files
-for FILE in "${srcs[@]}"; do
-    echo "Uploading $FILE using hermod"
-    hyperfine "hermod upload --source $SRC_DIR/$FILE --remote $REMOTE --destination $OUT_DIR" --show-output
-done
+# Upload files
+hyperfine --parameter-list src ${srcs[@]} "hermod upload --source $SRC_DIR/{src} --remote $REMOTE --destination $OUT_DIR" --export-json /output/hermod.json
 
+hyperfine --parameter-list src ${srcs[@]} "scp -r $SRC_DIR/{src} root@$HOST_NAME:$OUT_DIR" --export-json /output/scp.json
 
-hyperfine "hermod upload --source $SRC_DIR/src --remote $REMOTE --destination $OUT_DIR" --show-output
-
-for FILE in "${srcs[@]}"; do
-    echo "Uploading $FILE using scp"
-    hyperfine "scp $SRC_DIR/$FILE root@$HOST_NAME:$OUT_DIR" --show-output
-done
-
-hyperfine "scp -r $SRC_DIR/src root@$HOST_NAME:$OUT_DIR" --show-output
-
-for FILE in "${srcs[@]}"; do
-    echo "Uploading $FILE using sftp"
-    hyperfine "sftp root@$HOST_NAME <<EOF
-        put $SRC_DIR/$FILE $OUT_DIR
-        EOF" --show-output
-done
-hyperfine "sftp root@$HOST_NAME <<EOF
-    put -r $SRC_DIR/src $OUT_DIR
-    EOF" --show-output
+hyperfine --parameter-list src ${srcs[@]} "sftp root@$HOST_NAME <<EOF
+put -r $SRC_DIR/{src} $OUT_DIR
+EOF" --export-json /output/sftp.json
