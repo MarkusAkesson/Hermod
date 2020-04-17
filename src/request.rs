@@ -227,10 +227,12 @@ impl Request {
             endpoint.get_peer(),
             self
         );
-        match self.method {
+        let res = match self.method {
             RequestMethod::Upload => self.download_server(endpoint).await,
             RequestMethod::Download => self.upload_server(endpoint).await,
-        }
+        };
+        info!("Responded to request from {}", endpoint.get_peer(),);
+        res
     }
 
     pub async fn exec_all(
