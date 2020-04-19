@@ -35,7 +35,7 @@ impl<'hs> HermodServer {
             let mut incoming = listener
                 .incoming()
                 .log_warnings(|e| {
-                    warn!("Accept error: {}. SLeeping 0.5s. {}", e, error_hint(&e));
+                    warn!("Accept error: {}. Sleeping 0.5s. {}", e, error_hint(&e));
                 })
                 .handle_errors(Duration::from_millis(500))
                 .backpressure(100);
@@ -125,11 +125,10 @@ async fn share_key(stream: &mut TcpStream) -> Result<(), HermodError> {
 async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
     // TODO: Clean up
     // 12 = tokenid base64len
-    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN + 12];
+    let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN - MSG_TYPE_LEN];
     stream.read_exact(&mut buffer).await?;
 
     let msg = Message::new(MessageType::Init, &buffer);
-
     let peer = Peer::new_client_peer(
         &str::from_utf8(&msg.get_payload()[0..12])
             .expect("Failed to read client id from Init message"),

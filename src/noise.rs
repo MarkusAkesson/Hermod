@@ -4,9 +4,11 @@ use crate::error::HermodError;
 use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
+use std::str;
+
 use snow::{self, Builder, HandshakeState, TransportState};
 
-use log::info;
+use log::{debug, info};
 
 use async_std::net::TcpStream;
 use async_std::prelude::*;
@@ -75,24 +77,30 @@ impl<'cfg> NoiseStream {
     }
 
     pub async fn send(&mut self, msg: &Message) -> Result<(), HermodError> {
+        let mut packet = [0u8; PACKET_MAXLENGTH];
         let msg_type = msg.get_type();
         let plaintext = msg.get_payload();
-        let mut ciphertext = vec![0u8; plaintext.len() + AEAD_TAG_LEN];
+        let mut ciphertext_len = plaintext.len() + AEAD_TAG_LEN;
 
         // Generate new encryption key after sending 1GB of data
-        if self.bytes_sent + ciphertext.len() > REKEY_THRESHOLD {
+        if self.bytes_sent + ciphertext_len > REKEY_THRESHOLD {
             self.noise.rekey_outgoing();
             self.stream.write_all(&[MessageType::Rekey as u8]).await?;
             self.bytes_sent = 0;
-            info!("new key needed");
+            info!("Generating new session key");
         }
 
-        let cipher_len = self.noise.write_message(plaintext, &mut ciphertext)?;
-        self.stream.write_all(&[msg_type as u8]).await?;
-        self.stream
-            .write_all(&(cipher_len as u16).to_be_bytes())
-            .await?;
-        self.stream.write_all(&ciphertext[..cipher_len]).await?;
+        let cipher_len = self
+            .noise
+            .write_message(plaintext, &mut packet[MSG_HEADER_LEN..])?;
+        let len_arr = (cipher_len as u16).to_be_bytes();
+
+        packet[0] = msg_type as u8;
+        packet[1] = len_arr[0];
+        packet[2] = len_arr[1];
+        let msg_len = MSG_HEADER_LEN + cipher_len;
+
+        self.stream.write_all(&packet[..msg_len]).await?;
         self.bytes_sent += cipher_len;
         Ok(())
     }
@@ -124,13 +132,21 @@ async fn client_handshake(
     hs: &mut HandshakeState,
     token: &[u8],
 ) -> Result<(), snow::error::Error> {
-    let mut init_buffer = vec![0u8; 64];
+    let mut packet = [0u8; PACKET_MAXLENGTH];
 
-    let len = hs.write_message(&[], &mut init_buffer)?;
+    packet[0] = MessageType::Init as u8;
 
-    stream.write_all(&[MessageType::Init as u8]).await.unwrap();
-    stream.write_all(token).await.unwrap();
-    stream.write_all(&init_buffer[..len]).await.unwrap();
+    let mut i = 1;
+    token.iter().for_each(|byte| {
+        packet[i] = *byte;
+        i += 1;
+    });
+
+    let len = hs.write_message(&[], &mut packet[13..])?;
+    stream
+        .write_all(&packet[..HERMOD_HS_INIT_LEN])
+        .await
+        .unwrap();
 
     let mut read_buffer = vec![0u8; HERMOD_HS_RESP_LEN + MSG_TYPE_LEN];
     let mut resp_buffer = vec![0u8; HERMOD_HS_RESP_LEN];
@@ -144,12 +160,12 @@ async fn server_handshake(
     hs: &mut HandshakeState,
     msg: &Message,
 ) -> Result<(), HermodError> {
-    let mut resp_buffer = vec![0u8; 64];
+    let mut resp_buffer = vec![0u8; 64 + MSG_TYPE_LEN];
 
     hs.read_message(&msg.get_payload()[12..], &mut [])?;
 
-    let len = hs.write_message(&[], &mut resp_buffer)?;
-    stream.write_all(&[MessageType::Response as u8]).await?;
-    stream.write_all(&resp_buffer[..len]).await?;
+    let len = hs.write_message(&[], &mut resp_buffer[MSG_TYPE_LEN..])?;
+    resp_buffer[0] = MessageType::Response as u8;
+    stream.write_all(&resp_buffer).await?;
     Ok(())
 }
