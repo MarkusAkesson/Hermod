@@ -3,9 +3,9 @@ pub const MAC_LENGTH: usize = 16;
 
 pub const HERMOD_PORT: u16 = 4444;
 
-pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_TYPE_LEN: usize = 1;
 pub const MSG_LENGTH_LEN: usize = 2;
+pub const MSG_HEADER_LEN: usize = MSG_TYPE_LEN + MSG_LENGTH_LEN;
 pub const MSG_PAYLOAD_LEN: usize = PACKET_MAXLENGTH - MSG_HEADER_LEN - MAC_LENGTH;
 
 pub const AEAD_TAG_LEN: usize = 16;
@@ -24,7 +24,7 @@ pub const SERVER_PUBLIC_KEY_FILE: &'static str = "server_key.pub";
 
 pub const HERMOD_LOG_FILE: &'static str = "server.log";
 
-pub const HERMOD_HS_INIT_LEN: usize = 48;
+pub const HERMOD_HS_INIT_LEN: usize = 61;
 pub const HERMOD_HS_RESP_LEN: usize = 48;
 
 pub const HERMOD_KS_INIT_LEN: usize = 32;
