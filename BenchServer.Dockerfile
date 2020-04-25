@@ -4,7 +4,7 @@ WORKDIR /usr/src/Hermod
 COPY Cargo.toml .
 COPY src/ src/.
 
-RUN cargo install --path .
+RUN RUSTFLAGS='-C target-cpu=native' cargo install --path .
 
 FROM debian:buster
 
