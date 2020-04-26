@@ -6,7 +6,7 @@ use std::fmt;
 use std::io::prelude::*;
 
 use async_std::fs::File;
-use async_std::io::{self, BufReader, BufWriter};
+use async_std::io::{self, BufReader};
 use async_std::path::PathBuf;
 use async_std::prelude::*;
 

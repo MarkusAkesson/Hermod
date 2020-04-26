@@ -12,7 +12,6 @@ use std::str;
 use snow::{self, Builder, HandshakeState};
 
 use async_std::net::TcpStream;
-use async_std::net::ToSocketAddrs;
 use async_std::prelude::*;
 
 use futures::future::TryFutureExt;

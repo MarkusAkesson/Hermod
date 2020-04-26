@@ -1,5 +1,4 @@
 use crate::config::ClientConfig;
-use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;

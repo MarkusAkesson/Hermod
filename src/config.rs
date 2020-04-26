@@ -26,7 +26,6 @@ pub struct ServerConfig {
 
 pub struct ClientConfigBuilder<'builder> {
     host: &'builder Host,
-    compression: Option<bool>,
     pub source: Option<&'builder [&'builder str]>,
     pub destination: Option<&'builder str>,
     pub request: Option<RequestMethod>,
@@ -34,7 +33,6 @@ pub struct ClientConfigBuilder<'builder> {
 
 pub struct ClientConfig<'builder> {
     host: &'builder Host,
-    compression: bool,
     pub source: Vec<&'builder str>,
     pub destination: &'builder str,
     pub request: RequestMethod,
@@ -64,16 +62,10 @@ impl<'builder> ClientConfigBuilder<'builder> {
     pub fn new(host: &'builder Host) -> Self {
         ClientConfigBuilder {
             host,
-            compression: None,
             source: None,
             destination: None,
             request: None,
         }
-    }
-
-    pub fn compression(mut self, compression: bool) -> Self {
-        self.compression = Some(compression);
-        self
     }
 
     pub fn source(mut self, source: &'builder [&'builder str]) -> Self {
@@ -92,12 +84,11 @@ impl<'builder> ClientConfigBuilder<'builder> {
     }
 
     pub fn build_config(&self) -> ClientConfig {
-        let compression = self.compression.unwrap_or(false);
         let source = self.source.expect("No source file specified");
         let destination = self.destination.expect("No destination specified");
         let request = self.request.expect("No request method specified");
 
-        ClientConfig::new(self.host, compression, source, destination, request)
+        ClientConfig::new(self.host, source, destination, request)
     }
 }
 
@@ -134,7 +125,6 @@ impl ServerConfig {
 impl<'builder> ClientConfig<'builder> {
     pub fn new(
         host: &'builder Host,
-        compression: bool,
         source: &'builder [&'builder str],
         destination: &'builder str,
         request: RequestMethod,
@@ -142,7 +132,6 @@ impl<'builder> ClientConfig<'builder> {
         let source = source.to_vec();
         ClientConfig {
             host,
-            compression,
             source,
             destination,
             request,

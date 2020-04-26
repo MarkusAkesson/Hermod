@@ -4,11 +4,9 @@ use crate::error::HermodError;
 use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
-use std::str;
-
 use snow::{self, Builder, HandshakeState, TransportState};
 
-use log::{debug, info};
+use log::info;
 
 use async_std::net::TcpStream;
 use async_std::prelude::*;
@@ -80,7 +78,7 @@ impl<'cfg> NoiseStream {
         let mut packet = [0u8; PACKET_MAXLENGTH];
         let msg_type = msg.get_type();
         let plaintext = msg.get_payload();
-        let mut ciphertext_len = plaintext.len() + AEAD_TAG_LEN;
+        let ciphertext_len = plaintext.len() + AEAD_TAG_LEN;
 
         // Generate new encryption key after sending 1GB of data
         if self.bytes_sent + ciphertext_len > REKEY_THRESHOLD {
@@ -142,7 +140,7 @@ async fn client_handshake(
         i += 1;
     });
 
-    let len = hs.write_message(&[], &mut packet[13..])?;
+    let _len = hs.write_message(&[], &mut packet[13..])?;
     stream
         .write_all(&packet[..HERMOD_HS_INIT_LEN])
         .await
@@ -160,12 +158,11 @@ async fn server_handshake(
     hs: &mut HandshakeState,
     msg: &Message,
 ) -> Result<(), HermodError> {
-    let mut resp_buffer = vec![0u8; 64 + MSG_TYPE_LEN];
+    let mut resp_buffer = vec![0u8; 48 + MSG_TYPE_LEN];
 
     hs.read_message(&msg.get_payload()[12..], &mut [])?;
-
-    let len = hs.write_message(&[], &mut resp_buffer[MSG_TYPE_LEN..])?;
+    let _len = hs.write_message(&[], &mut resp_buffer[MSG_TYPE_LEN..])?;
     resp_buffer[0] = MessageType::Response as u8;
-    stream.write_all(&resp_buffer).await?;
+    stream.write_all(&resp_buffer[..]).await?;
     Ok(())
 }

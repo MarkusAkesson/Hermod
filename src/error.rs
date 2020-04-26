@@ -77,22 +77,7 @@ impl fmt::Display for HermodError {
 }
 
 impl error::Error for HermodError {
-    fn description(&self) -> &str {
-        match *self.0 {
-            HermodErrorKind::FileNotFound(ref err) => error::Error::description(err),
-            HermodErrorKind::OpenFile(ref err) => error::Error::description(err),
-            HermodErrorKind::CreateFile(ref err) => error::Error::description(err),
-            HermodErrorKind::ConnectionRefused(ref err) => error::Error::description(err),
-            HermodErrorKind::IoError(ref err) => error::Error::description(err),
-            HermodErrorKind::B64Decode(ref err) => error::Error::description(err),
-            HermodErrorKind::ReadPubKey(ref err) => error::Error::description(err),
-            HermodErrorKind::ReadPrivKey(ref err) => error::Error::description(err),
-            HermodErrorKind::ReadAuthorizedClients(ref err) => error::Error::description(err),
-            _ => "TODO: Description for all enum values for hermod error",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self.0 {
             HermodErrorKind::OpenFile(ref err) => Some(err),
             HermodErrorKind::CreateFile(ref err) => Some(err),

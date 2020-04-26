@@ -7,18 +7,17 @@ use crate::peer::Endpoint;
 use std::fmt;
 use std::path::PathBuf;
 
-use async_std::fs::{self, DirEntry, File};
+use async_std::fs::{self, File};
 use async_std::io::{BufReader, BufWriter};
-use async_std::path::{Path, StripPrefixError};
+use async_std::path::Path;
 use async_std::prelude::*;
 use async_std::sync::{Receiver, Sender};
 
-use futures::future::{BoxFuture, FutureExt};
 use futures::{stream, Stream, StreamExt};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-use log::{debug, error, info};
+use log::info;
 
 use serde::{Deserialize, Serialize};
 
@@ -601,17 +600,8 @@ async fn send_dir_content(
     path: async_std::path::PathBuf,
     endpoint: &mut Endpoint,
 ) -> Result<(), HermodError> {
-    let base = path.clone();
     let paths = read_dir(path.into());
     let paths = paths
-        //.map(|entry| -> Result<async_std::path::PathBuf, HermodError> {
-        //    dbg!(&entry);
-        //    let path_buf = entry?
-        //        .strip_prefix(async_std::path::PathBuf::from(&base))
-        //        .unwrap()
-        //        .to_path_buf();
-        //    Ok(path_buf)
-        //})
         .filter_map(|p| async { p.ok() })
         .collect::<Vec<async_std::path::PathBuf>>()
         .await;

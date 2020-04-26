@@ -89,12 +89,10 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
     let destination = args
         .value_of("destination")
         .expect("Obligatory argument 'destination' missing, aborting");
-    let compression = args.is_present("compression");
 
     let cfg_builder = ClientConfigBuilder::new(&host)
         .source(&source)
         .destination(destination)
-        .compression(compression)
         .request(method);
 
     let cfg = cfg_builder.build_config();
