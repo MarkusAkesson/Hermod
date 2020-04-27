@@ -116,4 +116,8 @@ impl Message {
     pub fn len(&self) -> usize {
         MSG_TYPE_LEN + self.payload.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.payload.len() == 0
+    }
 }

@@ -108,7 +108,7 @@ async fn handle_connection(_token: &Token, stream: &mut TcpStream) -> Result<(),
     match MessageType::from(msg_type[0]) {
         MessageType::Init => incomming_request(stream).await,
         MessageType::ShareKeyInit => share_key(stream).await,
-        _ => return Ok(()),
+        _ => Ok(()),
     }
 }
 

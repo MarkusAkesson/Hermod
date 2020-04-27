@@ -59,7 +59,7 @@ impl Identity {
 
         for line in lines {
             let line = line.expect("Error reading authorized_clients file content");
-            let line_content: Vec<&str> = line.split(":").collect();
+            let line_content: Vec<&str> = line.split(':').collect();
 
             let id_token = line_content[0];
             let client_key = base64::decode(line_content[1].as_bytes()).unwrap();
@@ -108,13 +108,11 @@ pub fn print_known_clients() {
         let mut writer = BufWriter::new(io::stdout());
 
         writer
-            .write(format!("Found {} known client(s)\n", num_clients).as_ref())
+            .write_all(format!("Found {} known client(s)\n", num_clients).as_ref())
             .unwrap();
-        writer
-            .write(format!("TOKEN PUBLIC_KEY\n").as_ref())
-            .unwrap();
+        writer.write_all("TOKEN PUBLIC_KEY\n".as_ref()).unwrap();
         KNOWN_CLIENTS.lock().await.values().for_each(|v| {
-            writer.write(format!("{}\n", v).as_ref()).unwrap();
+            writer.write_all(format!("{}\n", v).as_ref()).unwrap();
         });
     });
 }

@@ -33,7 +33,7 @@ impl<'cfg> NoiseStream {
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, HermodError> {
-        let mut noise = Builder::new(NOISE_PATTERN.clone().parse().unwrap())
+        let mut noise = Builder::new(NOISE_PATTERN.parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
             .build_initiator()?;
@@ -54,7 +54,7 @@ impl<'cfg> NoiseStream {
         stream: &mut TcpStream,
         message: &Message,
     ) -> Result<Self, HermodError> {
-        let mut noise = Builder::new(NOISE_PATTERN.clone().parse()?)
+        let mut noise = Builder::new(NOISE_PATTERN.parse()?)
             .local_private_key(config.get_private_key())
             .remote_public_key(peer.get_public_key())
             .build_responder()?;

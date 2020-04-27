@@ -18,7 +18,7 @@ use futures::future::TryFutureExt;
 
 pub async fn receive_key(stream: &mut TcpStream, msg: &Message) -> Result<(), HermodError> {
     println!("Reciving new key");
-    let mut noise = Builder::new(SHARE_KEY_PATTERN.clone().parse()?)
+    let mut noise = Builder::new(SHARE_KEY_PATTERN.parse()?)
         .local_private_key((*SERVER_CONFIG).get_private_key())
         .build_responder()?;
 
@@ -39,7 +39,6 @@ pub fn share_key(host: Host) {
 
     let mut noise = Builder::new(
         SHARE_KEY_PATTERN
-            .clone()
             .parse()
             .expect("Invalid Noise Pattern supplied"),
     )

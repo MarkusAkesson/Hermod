@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use walkdir::WalkDir;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct PathList {
     paths: Vec<String>,
 }
@@ -44,7 +44,7 @@ impl PathList {
 
     pub fn from(paths: &[async_std::path::PathBuf]) -> Self {
         let paths: Vec<String> = paths
-            .into_iter()
+            .iter()
             .map(|path| -> Result<String, HermodError> {
                 let path = String::from(path.to_string_lossy());
                 Ok(path)
@@ -60,6 +60,10 @@ impl PathList {
 
     pub fn len(&self) -> usize {
         self.paths.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
     }
 }
 
@@ -373,13 +377,11 @@ impl Request {
         let mut paths = PathList::new();
         loop {
             let msg = endpoint.recv().await?;
-            if msg.get_type() == MessageType::Error {
+            if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
                 // TODO fix better error message
                 break;
-            } else if msg.get_type() == MessageType::EOF {
-                break;
             }
-
+            dbg!(msg.get_type());
             paths.append(&mut bincode::deserialize::<Vec<String>>(msg.get_payload()).unwrap());
         }
 
@@ -404,7 +406,13 @@ impl Request {
             dir_diff.pop();
             destination.push(dir_diff);
             let request = Request::file(&path, destination.to_str().unwrap(), self.method)
-                .expect(&format!("Failed to create request for {}", path));
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Failed to create request for
+{}",
+                        path
+                    )
+                });
             request.get_file(endpoint).await?;
         }
 
@@ -600,16 +608,16 @@ async fn send_dir_content(
     path: async_std::path::PathBuf,
     endpoint: &mut Endpoint,
 ) -> Result<(), HermodError> {
-    let paths = read_dir(path.into());
+    let paths = read_dir(path);
     let paths = paths
         .filter_map(|p| async { p.ok() })
         .collect::<Vec<async_std::path::PathBuf>>()
         .await;
-    let mut paths = PathList::from(paths.as_slice()).into_iter();
+    let paths = PathList::from(paths.as_slice()).into_iter();
     let mut payload = Vec::new();
     let mut len = 0;
 
-    while let Some(path) = paths.next() {
+    for path in paths {
         if len + path.len() < PACKET_MAXLENGTH {
             len += path.len();
             payload.push(path);
