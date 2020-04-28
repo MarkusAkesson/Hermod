@@ -56,6 +56,33 @@ impl<'hc> HermodClient<'hc> {
             match endpoint.close().await {
                 Ok(_) => (),
                 Err(e) => eprintln!("Failed to close the connection: {}", e),
+                    println!("{}", e);
+                    return;
+                }
+            };
+            let peer = Peer::new_server_peer(self.config.get_alias())
+                .await
+                .unwrap();
+            // Conduct noise handshake
+            let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
+                .await
+                .unwrap();
+            // Execute the request
+            let request = Request::new(&self.config);
+            match request.exec(&mut endpoint).await {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{}", e);
+                    return;
+                }
+            };
+            let msg = Message::new(MessageType::Close, &[]);
+            match endpoint.send(&msg).await {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{}", e);
+                    return;
+                }
             };
         });
     }

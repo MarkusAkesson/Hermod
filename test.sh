@@ -32,3 +32,4 @@ function cleanup() {
     docker rm hermod-client &>/dev/null
     docker network rm test &>/dev/null
 }
+

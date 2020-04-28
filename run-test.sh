@@ -1,5 +1,6 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 SRC_DIR="/sources"
 OUT_DIR="/output"
 
@@ -35,3 +36,4 @@ for FILE in "${srcs[@]}"; do
     fi
 
 done
+
