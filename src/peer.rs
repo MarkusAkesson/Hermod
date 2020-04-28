@@ -109,6 +109,4 @@ impl<'e> Endpoint {
     pub async fn recv(&mut self) -> Result<Message, HermodError> {
         self.stream.recv().await
     }
-
-    pub fn send(mesage: &message) {}
 }

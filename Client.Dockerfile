@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 FROM rust:1.43 as builder
 
 WORKDIR /usr/src/Hermod
@@ -11,6 +12,10 @@ FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
 COPY --from=builder /usr/local/cargo/bin/b3sum /usr/local/bin/b3sum
 RUN mkdir ~/.hermod /output
+
+FROM debian:buster
+COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
+RUN mkdir ~/.hermod
 
 WORKDIR /sources
 
