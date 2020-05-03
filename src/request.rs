@@ -381,7 +381,6 @@ impl Request {
                 // TODO fix better error message
                 break;
             }
-            dbg!(msg.get_type());
             paths.append(&mut bincode::deserialize::<Vec<String>>(msg.get_payload()).unwrap());
         }
 
