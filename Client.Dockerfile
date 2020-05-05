@@ -12,10 +12,6 @@ COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
 COPY --from=builder /usr/local/cargo/bin/b3sum /usr/local/bin/b3sum
 RUN mkdir ~/.hermod /output
 
-FROM debian:buster
-COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
-RUN mkdir ~/.hermod
-
 WORKDIR /sources
 
 RUN fallocate -l 1G   large.file && \
