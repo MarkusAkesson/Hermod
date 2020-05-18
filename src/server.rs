@@ -64,9 +64,9 @@ impl<'hs> HermodServer {
         };
 
         if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
-            eprintln!("Previous configuration found, pass --force to overwrite");
+            error!("Previous configuration found, pass --force to overwrite");
             return;
-        } else if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
+        } else if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && force {
             info!("Existing configuration found, overwriting");
         }
 
@@ -124,11 +124,11 @@ async fn share_key(stream: &mut TcpStream) -> Result<(), HermodError> {
 
 async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
     // TODO: Clean up
-    // 12 = tokenid base64len
     let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN - MSG_TYPE_LEN];
     stream.read_exact(&mut buffer).await?;
 
     let msg = Message::new(MessageType::Init, &buffer);
+    // 12 = tokenid base64len
     let peer = Peer::new_client_peer(
         &str::from_utf8(&msg.get_payload()[0..12])
             .expect("Failed to read client id from Init message"),
@@ -137,7 +137,7 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
 
     let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
 
-    // Request loop listen for and handle incomming request
+    // Request loop listen for and handle incomming requests
     loop {
         let msg = match endpoint.recv().await {
             Ok(msg) => msg,
@@ -148,15 +148,24 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
         };
 
         match msg.get_type() {
-            MessageType::Error => break, // Received error, log error message, Cloe Connection
+            MessageType::Error => {
+                error!("Received 'error' from the client, closing connection");
+                break;
+            }
             MessageType::Request => {
                 let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
                 request.respond(&mut endpoint).await?
             }
-            MessageType::Close => break,
-            _ => break, // log: Received message out of order {} type, Closing connection
+            MessageType::Close => {
+                info!("Received 'close' from the client, closing connection");
+                break;
+            }
+            _ => {
+                error!("Received unexpected message from the client, closing connection");
+                break;
+            } // log: Received message out of order {} type, Closing connection
         }
     }
-    debug!("Closing connection");
+    info!("Closing connection");
     Ok(())
 }
