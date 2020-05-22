@@ -108,7 +108,7 @@ async fn recv_identity(
             .expect("Failed to read the remotes public static key")
             .to_vec(),
     );
-    stream.write_all(&[MessageType::Okey as u8]).await?;
+    stream.write_all(&[MessageType::Okay as u8]).await?;
     Ok(id)
 }
 
@@ -135,7 +135,7 @@ async fn send_identity(
     let mut buf = vec![0u8; MSG_TYPE_LEN];
     stream.read_exact(&mut buf).await?;
     match MessageType::from(buf[0]) {
-        MessageType::Okey => Ok(()),
+        MessageType::Okay => Ok(()),
         _ => Err(HermodError::new(HermodErrorKind::ShareKey)),
     }
 }

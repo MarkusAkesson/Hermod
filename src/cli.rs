@@ -54,7 +54,7 @@ pub fn get_matches() -> clap::ArgMatches<'static> {
                 .value_name("NAME")
                 .takes_value(true)
                 .required(true)
-                .help("The remote hostname or ip address for the server to share a public keys with. Generates new client keys for the server if they dont exists")))
+                .help("The remote hostname or ip address for the server to share a public keys with. Generates new client keys for the server if they do not exist")))
         .subcommand(SubCommand::with_name("upload")
             .about("Upload a file or files to the remote server")
             .arg(Arg::with_name("remote")

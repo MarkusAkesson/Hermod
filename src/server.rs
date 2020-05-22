@@ -63,10 +63,12 @@ impl<'hs> HermodServer {
             path.as_path().exists()
         };
 
-        if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
+        let exists = exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE);
+
+        if exists && !force {
             eprintln!("Previous configuration found, pass --force to overwrite");
             return;
-        } else if (exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE)) && !force {
+        } else if exists && force {
             info!("Existing configuration found, overwriting");
         }
 

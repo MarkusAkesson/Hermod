@@ -17,7 +17,7 @@ use futures::{stream, Stream, StreamExt};
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-use log::info;
+use log::{error, info};
 
 use serde::{Deserialize, Serialize};
 
@@ -176,7 +176,7 @@ impl Request {
         })
     }
 
-    // FIXME Look into a better way to handle directories
+    // FIXME Find a better way to handle directories
     pub fn dir(
         source: &str,
         destination: &str,
@@ -466,12 +466,14 @@ impl Request {
             let msg = endpoint.recv().await?;
             if msg.get_type() == MessageType::Error {
                 // TODO fix better error message
+                error!("Failed to download {}", &metadata.file_path);
                 pb.finish_with_message(
                     format!("Failed to download: {:32} ", metadata.file_path).as_str(),
                 );
                 tx.send(msg).await;
                 break;
             } else if msg.get_type() == MessageType::EOF {
+                info!("Received EOR for {}", &metadata.file_path);
                 tx.send(msg).await;
                 break;
             }
@@ -572,6 +574,8 @@ async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &P
                     .await
                     .expect("Could not remove the destination file");
 
+                error!("Received an error while downloading {:?}", &path);
+                info!("Removing {:?}", &path);
                 return; // Received error, log error message, Close Connection, Remove file
             }
             MessageType::Payload => {
@@ -583,15 +587,20 @@ async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &P
                     .expect("Failed to write payload to file");
             }
             MessageType::EOF => {
-                // EOF, flush buffer and return
-                // TODO: Log writing to file {} file.name
+                info!("Received EOF for {:?}, flushing", &path);
                 writer
                     .flush()
                     .await
                     .expect("Failed to flush the file writer");
                 return;
             }
-            _ => return, // log received unexpected message: {} type, Closing connection
+            _ => {
+                error!(
+                    "Received an unexpected message while downloading {:?}",
+                    &path
+                );
+                return;
+            }
         }
     }
 }
@@ -607,8 +616,7 @@ async fn send_dir_content(
     path: async_std::path::PathBuf,
     endpoint: &mut Endpoint,
 ) -> Result<(), HermodError> {
-    let paths = read_dir(path);
-    let paths = paths
+    let paths = read_dir(path)
         .filter_map(|p| async { p.ok() })
         .collect::<Vec<async_std::path::PathBuf>>()
         .await;
