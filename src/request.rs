@@ -287,7 +287,7 @@ impl Request {
                 async move { read_file(buf_reader, tx, &metadata, false).await },
             );
 
-            while let Some(msg) = rx.recv().await {
+            while let Ok(msg) = rx.recv().await {
                 endpoint.send(&msg).await?;
             }
         }
@@ -309,7 +309,7 @@ impl Request {
         // TODO: Send Err on error instead of unwrapping
         async_std::task::spawn(async move { read_file(buf_reader, tx, &metadata, true).await });
 
-        while let Some(msg) = rx.recv().await {
+        while let Ok(msg) = rx.recv().await {
             endpoint.send(&msg).await?;
         }
 
@@ -566,7 +566,7 @@ async fn read_file(
 }
 
 async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &Path) {
-    while let Some(msg) = rx.recv().await {
+    while let Ok(msg) = rx.recv().await {
         match msg.get_type() {
             MessageType::Error => {
                 drop(writer);

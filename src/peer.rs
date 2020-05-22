@@ -27,20 +27,12 @@ impl Peer {
     }
 
     pub async fn new_client_peer(id: &str) -> Result<Self, HermodError> {
-        let id_token = KNOWN_CLIENTS
-            .lock()
-            .await
+        let clients = KNOWN_CLIENTS.lock().await;
+        let client = clients
             .get(id)
-            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?
-            .get_id()
-            .to_owned();
-        let client_key = KNOWN_CLIENTS
-            .lock()
-            .await
-            .get(id)
-            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?
-            .get_public_key()
-            .to_vec();
+            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?;
+        let id_token = client.get_id().to_owned();
+        let client_key = client.get_public_key().to_vec();
 
         Ok(Peer::Identity(Identity {
             id_token,
