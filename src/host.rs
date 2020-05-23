@@ -118,6 +118,7 @@ impl Host {
 pub fn exists(alias: &str) -> bool {
     let mut path = std::path::PathBuf::new();
     path.push(dirs::home_dir().expect("Failed to get home directory"));
+    path.push(HERMOD_BASE_DIR);
     path.push(HOST_DIR);
     path.push(alias);
     path.as_path().exists()

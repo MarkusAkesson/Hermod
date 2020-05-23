@@ -35,3 +35,4 @@ for FILE in "${srcs[@]}"; do
     fi
 
 done
+

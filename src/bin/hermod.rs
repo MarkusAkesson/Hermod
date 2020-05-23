@@ -1,10 +1,12 @@
 use hermod::cli;
 use hermod::config::ClientConfigBuilder;
+use hermod::consts::*;
 use hermod::request::RequestMethod;
 use hermod::server::HermodServer;
 
 use std::fs::File;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use daemonize::Daemonize;
 use log::{error, info};
@@ -27,9 +29,23 @@ fn start_server(args: &clap::ArgMatches) {
     let daemonize = !args.is_present("no-daemon");
     let verbosity = args.occurrences_of("verbosity");
 
+    let base_dir: PathBuf = [
+        dirs::home_dir().expect("Failed to get home_directory"),
+        HERMOD_BASE_DIR.into(),
+    ]
+    .iter()
+    .collect();
+
+    if !base_dir.exists() {
+        std::fs::create_dir(base_dir).expect("Failed to create Hermods base directory");
+    }
+
     match hermod::log::setup_logger(!daemonize, verbosity) {
         Ok(()) => (),
-        Err(e) => eprintln!("Failed to initate logging, aborting. ({})", e),
+        Err(e) => {
+            eprintln!("Failed to initate logging, aborting. ({})", e);
+            return;
+        }
     }
 
     match args.subcommand() {
@@ -50,7 +66,7 @@ fn start_server(args: &clap::ArgMatches) {
                 let stderr = File::create("/tmp/hermod.err").unwrap();
                 let daemon = Daemonize::new()
                     .pid_file("/tmp/hermod.pid")
-                    .working_directory(dirs::home_dir().expect("Could not find home directory"))
+                    .working_directory(dirs::home_dir().expect("Could not find the home directory"))
                     .stdout(stdout)
                     .stderr(stderr);
 
@@ -101,16 +117,18 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 }
 
 fn gen_key(args: &clap::ArgMatches) {
-    println!("Generating a new static keypair and a new identification token...");
     let alias = args.value_of("alias").expect("No alias provided, aborting");
     let force = args.is_present("force");
+    let exists = hermod::host::exists(&alias);
 
-    if hermod::host::exists(&alias) && !force {
+    if exists && !force {
         eprintln!("Found an existing host with that alias, to overwrite pass --force");
         return;
-    } else {
+    } else if exists && force {
         println!("Found an existing host with that alias, overwriting");
     }
+
+    println!("Generating a new static keypair and a new identification token");
 
     let keys = hermod::genkey::gen_keys().expect("Failed to generate static keys");
     let private_key = keys.private;
@@ -131,13 +149,19 @@ fn gen_key(args: &clap::ArgMatches) {
 fn share_key(args: &clap::ArgMatches) {
     let name = args.value_of("name").expect("No name provided, aborting");
     let force = args.is_present("force");
+    let exists = hermod::host::exists(&name);
 
-    if hermod::host::exists(&name) && !force {
+    if exists && !force {
         eprintln!("Found an existing host with that alias, to overwrite pass --force");
         return;
-    } else {
+    } else if exists && force {
         println!("Found an existing host with that alias, overwriting");
     }
+
+    println!(
+        "Generating and sharing a new key pair with the remote: {}",
+        &name
+    );
 
     let host = args
         .value_of("host")

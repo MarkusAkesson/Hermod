@@ -52,11 +52,6 @@ impl<'hc> HermodClient<'hc> {
                 }
                 Err(e) => eprintln!("{}", e),
             };
-
-            match endpoint.close().await {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to close the connection: {}", e),
-            };
         });
     }
 }
