@@ -4,33 +4,57 @@ import numpy as np
 import json
 
 
-def load_means(files):
-    means = []
-    for file in files:
-        with open(file) as f:
-            a = []
+def load_stats(apps, n_files):
+    stats = {}
+    for app in apps:
+        path = "output/{}.json".format(app)
+        with open(path) as f:
+            a = {'mean': [], 'max': [], 'min': [], 'stddev': []}
             raw_json = json.loads(f.read())
-            for i in range(0, 4):
-                mean = raw_json['results'][i]['mean']
-                a.append(round(mean, 3))
-        means.append(a)
-    return means
+            for i in range(0, n_files):
+                a['mean'].append(round(raw_json['results'][i]['mean'], 2))
+                a['max'].append(round(raw_json['results'][i]['max'], 2))
+                a['min'].append(round(raw_json['results'][i]['min'], 2))
+                a['stddev'].append(round(raw_json['results'][i]['stddev'], 2))
+            stats[app] = a
+    return stats
 
 
-labels = ['1G', '500M', '10K', 'Hermod source code']
+def as_table(stats, apps, labels):
+    print("\\begin{tabular}{ | l | c | c | c | c | c | } \\hline")
+    print("{} & {} & {} & {} & {} & {} \\\\ \\hline".format(
+        "\\textbf{Application}",
+        "\\textbf{File}",
+        "\\textbf{Mean}",
+        "\\textbf{Standard deviation}",
+        "\\textbf{Min}",
+        "\\textbf{Max}"
+        ))
+    for app in apps:
+        for i in range(len(labels)):
+            print("{} & {} & {} & {} & {} & {} \\\\ \\hline".format(
+                app,
+                labels[i],
+                stats[app]['mean'][i],
+                stats[app]['stddev'][i],
+                stats[app]['min'][i],
+                stats[app]['max'][i]))
+    print("\\end{tabular}")
+
+
+apps = ['hermod', 'scp', 'sftp']
+labels = ['10G', '1G', '500M', '10K', 'Hermod source code']
 data_files = ['output/hermod.json', 'output/scp.json', 'output/sftp.json']
-means = load_means(data_files)
-hermod_means = means[0]
-scp_means = means[1]
-sftp_means = means[2]
+stats = load_stats(apps, len(labels))
+as_table(stats, apps, labels)
 
 x = np.arange(len(labels))  # the label locations
 width = 0.3  # the width of the bars
 
 fig, ax = plt.subplots()
-rects1 = ax.bar(x - width, hermod_means, width, label='Hermod')
-rects2 = ax.bar(x, scp_means, width, label='scp')
-rects3 = ax.bar(x + width, sftp_means, width, label='sftp')
+rects1 = ax.bar(x - width, stats['hermod']['mean'], width, label='Hermod')
+rects2 = ax.bar(x, stats['scp']['mean'], width, label='scp')
+rects3 = ax.bar(x + width, stats['sftp']['mean'], width, label='sftp')
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Seconds')
@@ -46,8 +70,8 @@ def autolabel(rects):
     for rect in rects:
         height = rect.get_height()
         ax.annotate('{}'.format(height),
-                    xy=(rect.get_x() + rect.get_width() / 3, height),
-                    xytext=(0, 3),  # 3 points vertical offset
+                    xy=(rect.get_x() + rect.get_width() / 4, height),
+                    xytext=(0, 4),  # 3 points vertical offset
                     textcoords="offset points",
                     ha='center', va='bottom')
 
