@@ -94,8 +94,8 @@ impl<'builder> ClientConfigBuilder<'builder> {
 
 impl ServerConfig {
     pub fn new() -> Self {
-        let mut public_key = Vec::with_capacity(44);
-        let mut private_key = Vec::with_capacity(44);
+        let mut public_key = Vec::with_capacity(SERVER_KEY_SIZE);
+        let mut private_key = Vec::with_capacity(SERVER_KEY_SIZE);
 
         let read_key_file = |buffer: &mut Vec<u8>, file_name: &str| -> io::Result<()> {
             let mut path = PathBuf::new();

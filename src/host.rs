@@ -140,7 +140,6 @@ pub fn load_host(alias: &str) -> Result<Host, HermodError> {
 
         let parts: Vec<&str> = line.split_whitespace().collect();
 
-        // TODO: remove ':'
         host = match parts[0] {
             "PublicKey:" => host.set_public_key(&base64::decode(parts[1])?),
             "PrivateKey:" => host.set_private_key(&base64::decode(parts[1])?),
@@ -169,7 +168,6 @@ pub async fn load_host_async(alias: &str) -> Result<Host, HermodError> {
 
         let parts: Vec<&str> = line.split_whitespace().collect();
 
-        // TODO: remove ':'
         host = match parts[0] {
             "PublicKey:" => host.set_public_key(&base64::decode(parts[1])?),
             "PrivateKey:" => host.set_private_key(&base64::decode(parts[1])?),

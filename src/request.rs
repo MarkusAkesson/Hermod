@@ -45,11 +45,7 @@ impl PathList {
     pub fn from(paths: &[async_std::path::PathBuf]) -> Self {
         let paths: Vec<String> = paths
             .iter()
-            .map(|path| -> Result<String, HermodError> {
-                let path = String::from(path.to_string_lossy());
-                Ok(path)
-            })
-            .filter_map(|e| e.ok())
+            .map(|path| -> String { path.to_string_lossy().into_owned() })
             .collect::<Vec<String>>();
         PathList { paths }
     }
@@ -252,8 +248,7 @@ impl Request {
     async fn send_request(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         let enc_req = bincode::serialize(&self).unwrap();
         let msg = Message::new(MessageType::Request, &enc_req);
-        endpoint.send(&msg).await?;
-        Ok(())
+        endpoint.send(&msg).await
     }
 
     pub async fn exec(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
@@ -273,7 +268,6 @@ impl Request {
             send_metadata(&metadata, endpoint).await?;
             send_dir_content(async_std::path::PathBuf::from(path), endpoint).await?;
         } else {
-            // Move to own function
             let file = File::open(&path).await?;
             let buf_reader = BufReader::new(file);
 
@@ -282,7 +276,6 @@ impl Request {
 
             // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
             // messages to the endpoint/peer
-            // TODO: Send Err on error instead of unwrapping
             async_std::task::spawn(
                 async move { read_file(buf_reader, tx, &metadata, false).await },
             );
@@ -306,7 +299,6 @@ impl Request {
 
         // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
         // messages to the endpoint/peer
-        // TODO: Send Err on error instead of unwrapping
         async_std::task::spawn(async move { read_file(buf_reader, tx, &metadata, true).await });
 
         while let Ok(msg) = rx.recv().await {
@@ -377,9 +369,10 @@ impl Request {
         let mut paths = PathList::new();
         loop {
             let msg = endpoint.recv().await?;
-            if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
-                // TODO fix better error message
+            if msg.get_type() == MessageType::EOF {
                 break;
+            } else if msg.get_type() == MessageType::Error {
+                return Err(HermodError::new(HermodErrorKind::Other));
             }
             paths.append(&mut bincode::deserialize::<Vec<String>>(msg.get_payload()).unwrap());
         }
@@ -465,7 +458,6 @@ impl Request {
         loop {
             let msg = endpoint.recv().await?;
             if msg.get_type() == MessageType::Error {
-                // TODO fix better error message
                 error!("Failed to download {}", &metadata.file_path);
                 pb.finish_with_message(
                     format!("Failed to download: {:32} ", metadata.file_path).as_str(),
@@ -474,6 +466,7 @@ impl Request {
                 break;
             } else if msg.get_type() == MessageType::EOF {
                 info!("Received EOR for {}", &metadata.file_path);
+                pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_path).as_str());
                 tx.send(msg).await;
                 break;
             }
@@ -484,7 +477,6 @@ impl Request {
             tx.send(msg).await;
         }
 
-        pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_path).as_str());
         Ok(())
     }
 }
@@ -575,7 +567,7 @@ async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &P
                     .expect("Could not remove the destination file");
 
                 error!("Received an error while downloading {:?}", &path);
-                info!("Removing {:?}", &path);
+                error!("Removing {:?}", &path);
                 return; // Received error, log error message, Close Connection, Remove file
             }
             MessageType::Payload => {
@@ -587,7 +579,7 @@ async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &P
                     .expect("Failed to write payload to file");
             }
             MessageType::EOF => {
-                info!("Received EOF for {:?}, flushing", &path);
+                info!("Received EOF for {:?}, flushing the file", &path);
                 writer
                     .flush()
                     .await
@@ -647,6 +639,7 @@ async fn send_dir_content(
             &bincode::serialize(&payload).unwrap(),
         ))
         .await?;
+
     // Send EOF to peer
     endpoint.send(&Message::new(MessageType::EOF, &[])).await?;
     Ok(())

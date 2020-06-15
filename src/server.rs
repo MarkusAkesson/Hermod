@@ -125,7 +125,6 @@ async fn share_key(stream: &mut TcpStream) -> Result<(), HermodError> {
 }
 
 async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
-    // TODO: Clean up
     let mut buffer = vec![0u8; HERMOD_HS_INIT_LEN - MSG_TYPE_LEN];
     stream.read_exact(&mut buffer).await?;
 
@@ -144,7 +143,7 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
         let msg = match endpoint.recv().await {
             Ok(msg) => msg,
             Err(e) => {
-                error!("{}", e);
+                error!("Connection error: {}", e);
                 break;
             }
         };

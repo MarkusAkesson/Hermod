@@ -9,6 +9,8 @@ use crate::message::{Message, MessageType};
 
 use std::str;
 
+use log::info;
+
 use snow::{self, Builder, HandshakeState};
 
 use async_std::net::TcpStream;
@@ -17,14 +19,13 @@ use async_std::prelude::*;
 use futures::future::TryFutureExt;
 
 pub async fn receive_key(stream: &mut TcpStream, msg: &Message) -> Result<(), HermodError> {
-    println!("Reciving new key");
+    info!("Reciving new key");
     let mut noise = Builder::new(SHARE_KEY_PATTERN.parse()?)
         .local_private_key((*SERVER_CONFIG).get_private_key())
         .build_responder()?;
 
     let id = recv_identity(stream, &mut noise, msg).await?;
 
-    // TODO: Add to KNOWN_CLIENT map
     identity::write_to_file(&id).await?;
     KNOWN_CLIENTS
         .lock()

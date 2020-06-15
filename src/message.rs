@@ -3,7 +3,7 @@ use crate::consts::*;
 use std::convert::From;
 use std::fmt;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum MessageType {
     Init = 1,
     Response,
@@ -21,29 +21,6 @@ pub enum MessageType {
     EndOfResponse,
     Rekey,
     Unknown,
-}
-
-impl fmt::Debug for MessageType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MessageType::Init => write!(f, "Init"),
-            MessageType::Response => write!(f, "Response"),
-            MessageType::Request => write!(f, "Request"),
-            MessageType::Payload => write!(f, "Payload"),
-            MessageType::Metadata => write!(f, "Metadata"),
-            MessageType::EOF => write!(f, "EOF"),
-            MessageType::Error => write!(f, "Error"),
-            MessageType::Close => write!(f, "Close"),
-            MessageType::Okay => write!(f, "Okay"),
-            MessageType::ShareKeyInit => write!(f, "ShareKeyInit"),
-            MessageType::ShareKeyResp => write!(f, "ShareKeyResp"),
-            MessageType::ShareIdentity => write!(f, "ShareIdentity"),
-            MessageType::ShareHost => write!(f, "ShareHost"),
-            MessageType::EndOfResponse => write!(f, "EndOfResponse"),
-            MessageType::Rekey => write!(f, "Rekey"),
-            MessageType::Unknown => write!(f, "Unknown"),
-        }
-    }
 }
 
 impl fmt::Display for MessageType {

@@ -19,14 +19,14 @@ impl<'hc> HermodClient<'hc> {
             let mut stream = match TcpStream::connect(self.config.get_hostname()).await {
                 Ok(stream) => stream,
                 Err(e) => {
-                    println!("Failed to connect to server: {}", e);
+                    eprintln!("Failed to connect to server: {}", e);
                     return;
                 }
             };
             let peer = match Peer::new_server_peer(self.config.get_alias()).await {
                 Ok(peer) => peer,
                 Err(_) => {
-                    println!(
+                    eprintln!(
                         "Cound not find a server with that alias ({}). Aborting...",
                         self.config.get_alias()
                     );

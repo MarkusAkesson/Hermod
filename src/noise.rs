@@ -113,7 +113,7 @@ impl<'cfg> NoiseStream {
             self.noise.rekey_incoming();
             info!("new key needed");
         }
-        let mut length = [0u8; MSG_LENGTH_LEN];
+        let mut length = [0u8; std::mem::size_of::<u16>()];
         self.stream.read_exact(&mut length).await?;
         let msg_len = u16::from_be_bytes(length) as usize;
         let mut enc_payload = vec![0u8; msg_len];
