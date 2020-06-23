@@ -5,6 +5,7 @@ authors = ["dat14mak <dat14mak@student.lu.se>"]
 edition = "2018"
 
 [profile.release]
+panic = "abort"
 lto = "thin"
 codegen-units = 1
 
