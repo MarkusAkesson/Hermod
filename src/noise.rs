@@ -1,10 +1,15 @@
 use crate::config::Config;
 use crate::consts::*;
 use crate::error::HermodError;
+use crate::hacl::HaclResolver;
 use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
-use snow::{self, Builder, HandshakeState, TransportState};
+use snow::{
+    self,
+    resolvers::{DefaultResolver, FallbackResolver},
+    Builder, HandshakeState, TransportState,
+};
 
 use log::info;
 
@@ -33,10 +38,16 @@ impl<'cfg> NoiseStream {
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, HermodError> {
-        let mut noise = Builder::new(NOISE_PATTERN.parse()?)
-            .local_private_key(config.get_private_key())
-            .remote_public_key(peer.get_public_key())
-            .build_initiator()?;
+        let mut noise = Builder::with_resolver(
+            NOISE_PATTERN.parse()?,
+            Box::new(FallbackResolver::new(
+                Box::new(HaclResolver),
+                Box::new(DefaultResolver),
+            )),
+        )
+        .local_private_key(config.get_private_key())
+        .remote_public_key(peer.get_public_key())
+        .build_initiator()?;
         client_handshake(stream, &mut noise, peer.get_id().as_bytes()).await?;
 
         let noise = noise.into_transport_mode()?;
@@ -54,10 +65,16 @@ impl<'cfg> NoiseStream {
         stream: &mut TcpStream,
         message: &Message,
     ) -> Result<Self, HermodError> {
-        let mut noise = Builder::new(NOISE_PATTERN.parse()?)
-            .local_private_key(config.get_private_key())
-            .remote_public_key(peer.get_public_key())
-            .build_responder()?;
+        let mut noise = Builder::with_resolver(
+            NOISE_PATTERN.parse()?,
+            Box::new(FallbackResolver::new(
+                Box::new(HaclResolver),
+                Box::new(DefaultResolver),
+            )),
+        )
+        .local_private_key(config.get_private_key())
+        .remote_public_key(peer.get_public_key())
+        .build_responder()?;
 
         server_handshake(stream, &mut noise, message).await?;
 
