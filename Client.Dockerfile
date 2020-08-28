@@ -19,7 +19,7 @@ RUN fallocate -l 1G   large.file && \
     fallocate -l 10K  small.file
 
 WORKDIR /usr/src/test
-COPY run-test.sh .
+COPY tools/run-test.sh .
 RUN chmod u+x run-test.sh
 
 CMD ["/usr/src/test/run-test.sh"]

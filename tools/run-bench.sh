@@ -25,4 +25,3 @@ hyperfine --parameter-list src ${srcs[@]} "scp -r $SRC_DIR/{src} root@$HOST_NAME
 hyperfine --parameter-list src ${srcs[@]} "sftp root@$HOST_NAME <<EOF
 put -r $SRC_DIR/{src} $OUT_DIR
 EOF" --export-json /output/sftp.json
-

@@ -29,7 +29,7 @@ def as_table(stats, apps, labels):
         "\\textbf{Standard deviation}",
         "\\textbf{Min}",
         "\\textbf{Max}"
-        ))
+    ))
     for app in apps:
         for i in range(len(labels)):
             print("{} & {} & {} & {} & {} & {} \\\\ \\hline".format(
@@ -44,7 +44,8 @@ def as_table(stats, apps, labels):
 
 apps = ['hermod', 'scp', 'sftp']
 labels = ['10G', '1G', '500M', '10K', 'Hermod source code']
-data_files = ['output/hermod.json', 'output/scp.json', 'output/sftp.json']
+data_files = ['../output/hermod.json',
+              '../output/scp.json', '../output/sftp.json']
 stats = load_stats(apps, len(labels))
 as_table(stats, apps, labels)
 

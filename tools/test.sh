@@ -7,8 +7,8 @@ trap cleanup EXIT
 
 if [ "$1" = "build" ]; then
     echo "Building containers"
-    docker build -f Server.Dockerfile -t hermod-server .
-    docker build -f Client.Dockerfile -t hermod-client .
+    docker build -f ../Server.Dockerfile -t hermod-server .
+    docker build -f ../Client.Dockerfile -t hermod-client .
 else
     echo "Reusing old containers"
 fi
@@ -32,4 +32,3 @@ function cleanup() {
     docker rm hermod-client &>/dev/null
     docker network rm test &>/dev/null
 }
-
