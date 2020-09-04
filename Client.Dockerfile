@@ -1,11 +1,12 @@
 FROM rust:1.43 as builder
 
+RUN cargo install b3sum
+
 WORKDIR /usr/src/Hermod
 COPY Cargo.toml .
 COPY src/ src/.
 
 RUN cargo install --path .
-RUN cargo install b3sum
 
 FROM debian:buster
 COPY --from=builder /usr/local/cargo/bin/hermod /usr/local/bin/hermod
