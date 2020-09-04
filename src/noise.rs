@@ -150,14 +150,9 @@ async fn client_handshake(
     let mut packet = [0u8; PACKET_MAXLENGTH];
 
     packet[0] = MessageType::Init as u8;
+    packet[1..ID_TOKEN_B64LEN as usize + 1].copy_from_slice(token);
 
-    let mut i = 1;
-    token.iter().for_each(|byte| {
-        packet[i] = *byte;
-        i += 1;
-    });
-
-    let _len = hs.write_message(&[], &mut packet[13..])?;
+    let _len = hs.write_message(&[], &mut packet[MSG_TYPE_LEN + ID_TOKEN_B64LEN as usize..])?;
     stream
         .write_all(&packet[..HERMOD_HS_INIT_LEN])
         .await
@@ -177,7 +172,7 @@ async fn server_handshake(
 ) -> Result<(), HermodError> {
     let mut resp_buffer = vec![0u8; 48 + MSG_TYPE_LEN];
 
-    hs.read_message(&msg.get_payload()[12..], &mut [])?;
+    hs.read_message(&msg.get_payload()[ID_TOKEN_B64LEN as usize..], &mut [])?;
     let _len = hs.write_message(&[], &mut resp_buffer[MSG_TYPE_LEN..])?;
     resp_buffer[0] = MessageType::Response as u8;
     stream.write_all(&resp_buffer[..]).await?;
