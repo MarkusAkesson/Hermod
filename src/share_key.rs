@@ -1,6 +1,6 @@
 use crate::config::{Config, SERVER_CONFIG};
 use crate::consts::*;
-use crate::error::{HermodError, HermodErrorKind};
+use crate::error::HermodError;
 use crate::genkey;
 use crate::host::Host;
 use crate::identity;
@@ -73,7 +73,7 @@ pub fn share_key(host: Host) {
             .set_private_key(&keys.private)
             .set_public_key(&keys.public)
             .write_to_file()
-            .map_err(|err| HermodError::new(HermodErrorKind::IoError(err)));
+            .map_err(|err| HermodError::IoError(err));
 
         match res {
             Ok(_) => println!("Succesfully shared keys with the remote"),
@@ -102,7 +102,7 @@ async fn recv_identity(
 
     let id = identity::Identity::new(
         str::from_utf8(&id)
-            .map_err(|_| HermodError::new(HermodErrorKind::Other))?
+            .map_err(|_| HermodError::Other)?
             .to_owned(),
         noise
             .get_remote_static()
@@ -137,6 +137,6 @@ async fn send_identity(
     stream.read_exact(&mut buf).await?;
     match MessageType::from(buf[0]) {
         MessageType::Okay => Ok(()),
-        _ => Err(HermodError::new(HermodErrorKind::ShareKey)),
+        _ => Err(HermodError::UnexpectedMessage),
     }
 }

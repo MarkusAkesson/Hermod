@@ -1,6 +1,6 @@
 use crate::config::ClientConfig;
 use crate::consts::*;
-use crate::error::{HermodError, HermodErrorKind};
+use crate::error::HermodError;
 use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 
@@ -160,9 +160,7 @@ impl Request {
         let source = PathBuf::from(source);
 
         if method == RequestMethod::Upload {
-            source
-                .canonicalize()
-                .map_err(|e| HermodError::new(HermodErrorKind::FileNotFound(e)))?;
+            source.canonicalize().map_err(|e| HermodError::IoError(e))?;
         }
 
         Ok(Request {
@@ -344,7 +342,7 @@ impl Request {
         let msg = endpoint.recv().await?;
 
         if msg.get_type() == MessageType::Error {
-            return Err(HermodError::new(HermodErrorKind::Other));
+            return Err(HermodError::Other);
         }
 
         let metadata: Metadata = bincode::deserialize(msg.get_payload()).unwrap();
@@ -372,7 +370,7 @@ impl Request {
             if msg.get_type() == MessageType::EOF {
                 break;
             } else if msg.get_type() == MessageType::Error {
-                return Err(HermodError::new(HermodErrorKind::Other));
+                return Err(HermodError::Other);
             }
             paths.append(&mut bincode::deserialize::<Vec<String>>(msg.get_payload()).unwrap());
         }
@@ -418,13 +416,13 @@ impl Request {
         let msg = endpoint.recv().await?;
 
         if msg.get_type() == MessageType::Error {
-            return Err(HermodError::new(HermodErrorKind::Other));
+            return Err(HermodError::Other);
         }
 
         let metadata: Metadata = bincode::deserialize(msg.get_payload()).unwrap();
 
         if metadata.dir {
-            return Err(HermodError::new(HermodErrorKind::IsDir));
+            return Err(HermodError::IsDir);
         }
 
         self.download_file(endpoint, &metadata).await

@@ -1,5 +1,5 @@
 use crate::consts::*;
-use crate::error::{HermodError, HermodErrorKind};
+use crate::error::HermodError;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -91,7 +91,7 @@ pub async fn write_to_file(id: &Identity) -> Result<(), HermodError> {
 
     file.write_all(format!("{}:{}\n", id.id_token, base64::encode(&id.client_key)).as_bytes())
         .await
-        .map_err(|_| HermodError::new(HermodErrorKind::Other))?;
+        .map_err(|_| HermodError::Other)?;
     file.flush().await?;
     Ok(())
 }

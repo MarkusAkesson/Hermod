@@ -1,5 +1,5 @@
 use crate::config::{ClientConfig, SERVER_CONFIG};
-use crate::error::{HermodError, HermodErrorKind};
+use crate::error::HermodError;
 use crate::host::{self, Host};
 use crate::identity::{Identity, KNOWN_CLIENTS};
 use crate::message::{Message, MessageType};
@@ -30,7 +30,7 @@ impl Peer {
         let clients = KNOWN_CLIENTS.lock().await;
         let client = clients
             .get(id)
-            .ok_or_else(|| HermodError::new(HermodErrorKind::UnknownIdentity))?;
+            .ok_or_else(|| HermodError::UnknownIdentity)?;
         let id_token = client.get_id().to_owned();
         let client_key = client.get_public_key().to_vec();
 
