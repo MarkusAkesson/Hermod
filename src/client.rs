@@ -1,4 +1,5 @@
 use crate::config::ClientConfig;
+use crate::message::{Message, MessageType};
 use crate::peer::Endpoint;
 use crate::peer::Peer;
 use crate::request::Request;
@@ -52,6 +53,10 @@ impl<'hc> HermodClient<'hc> {
                 }
                 Err(e) => eprintln!("{}", e),
             };
+
+            if let Err(e) = endpoint.send(&Message::new(MessageType::Close, &[])).await {
+                eprintln!("{}", e);
+            }
         });
     }
 }
