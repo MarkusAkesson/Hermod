@@ -65,9 +65,9 @@ impl PathList {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
-    pub len: u64,
-    pub file_path: String,
-    pub dir: bool,
+    len: u64,
+    file_path: String,
+    dir: bool,
 }
 
 impl Metadata {

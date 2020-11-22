@@ -66,7 +66,7 @@ impl<'hs> HermodServer {
         let exists = exists(SERVER_PRIVATE_KEY_FILE) || exists(SERVER_PUBLIC_KEY_FILE);
 
         if exists && !force {
-            eprintln!("Previous configuration found, pass --force to overwrite");
+            error!("Previous configuration found, pass --force to overwrite");
             return;
         } else if exists && force {
             info!("Existing configuration found, overwriting");
