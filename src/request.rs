@@ -7,11 +7,11 @@ use crate::peer::Endpoint;
 use std::fmt;
 use std::path::PathBuf;
 
+use async_std::channel::{Receiver, Sender};
 use async_std::fs::{self, File};
 use async_std::io::{BufReader, BufWriter};
 use async_std::path::Path;
 use async_std::prelude::*;
-use async_std::sync::{Receiver, Sender};
 
 use futures::{stream, Stream, StreamExt};
 
@@ -259,7 +259,7 @@ impl Request {
 
     async fn upload_server(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
         let path = self.source.canonicalize()?;
-        let (tx, rx) = async_std::sync::channel(100);
+        let (tx, rx) = async_std::channel::bounded(100);
 
         if path.as_path().is_dir() {
             let metadata = Metadata::from_path(&path).await?;
@@ -293,7 +293,7 @@ impl Request {
 
         let metadata = Metadata::from_path(&path).await?;
 
-        let (tx, rx) = async_std::sync::channel(100);
+        let (tx, rx) = async_std::channel::bounded(100);
 
         // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
         // messages to the endpoint/peer
@@ -318,7 +318,7 @@ impl Request {
         let file = File::create(&path).await?;
         let buf_writer = BufWriter::new(file);
 
-        let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::sync::channel(100);
+        let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::channel::bounded(100);
 
         // Spawn a task that write the incoming payload to disk
         async_std::task::spawn(async move { write_file(buf_writer, rx, path.as_path()).await });
@@ -327,11 +327,11 @@ impl Request {
         loop {
             let msg = endpoint.recv().await?;
             if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
-                tx.send(msg).await;
+                tx.send(msg).await?;
                 break;
             }
 
-            tx.send(msg).await;
+            tx.send(msg).await?;
         }
 
         Ok(())
@@ -444,7 +444,7 @@ impl Request {
         let file = File::create(&path).await?;
         let buf_writer = BufWriter::new(file);
 
-        let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::sync::channel(100);
+        let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::channel::bounded(100);
 
         let pb = create_progress_bar(&metadata, "Downloading");
 
@@ -460,19 +460,19 @@ impl Request {
                 pb.finish_with_message(
                     format!("Failed to download: {:32} ", metadata.file_path).as_str(),
                 );
-                tx.send(msg).await;
+                tx.send(msg).await?;
                 break;
             } else if msg.get_type() == MessageType::EOF {
                 info!("Received EOR for {}", &metadata.file_path);
                 pb.finish_with_message(format!("Downloaded: {:32} ", metadata.file_path).as_str());
-                tx.send(msg).await;
+                tx.send(msg).await?;
                 break;
             }
 
             received += msg.get_payload().len() as u64;
             pb.set_position(received);
 
-            tx.send(msg).await;
+            tx.send(msg).await?;
         }
 
         Ok(())
@@ -542,11 +542,11 @@ async fn read_file(
             // EOF reached
             // Send EOF to peer
             let msg = Message::new(MessageType::EOF, &[]);
-            tx.send(msg).await;
+            tx.send(msg).await.expect("Failed to send on channel");
             break;
         }
         let msg = Message::new(MessageType::Payload, &buffer);
-        tx.send(msg).await;
+        tx.send(msg).await.expect("Failed to send on channel");
     }
 
     // TODO handle error
