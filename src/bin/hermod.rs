@@ -2,13 +2,11 @@ use hermod::cli;
 use hermod::config::ClientConfigBuilder;
 use hermod::consts::*;
 use hermod::request::RequestMethod;
-use hermod::server::HermodServer;
+use hermod::server::Server;
 
-use std::fs::File;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use daemonize::Daemonize;
 use log::{error, info};
 
 fn main() {
@@ -52,25 +50,22 @@ fn start_server(args: &clap::ArgMatches) {
         ("setup", Some(args)) => {
             info!("Generating new static files for the server...");
             let force = args.is_present("force");
-            HermodServer::setup(force);
+            Server::setup(force);
         }
         ("list", Some(_)) => {
-            HermodServer::list_known_clients();
+            Server::list_known_clients();
         }
         // Treat all other cases as wanting to run the server
         _ => {
-            // Move this to HermodServer?
-            if daemonize {
-                info!("Preparing to run server as a daemon");
-                let stdout = File::create("/tmp/hermod.out").unwrap();
-                let stderr = File::create("/tmp/hermod.err").unwrap();
-                let daemon = Daemonize::new()
-                    .pid_file("/tmp/hermod.pid")
-                    .working_directory(dirs::home_dir().expect("Could not find the home directory"))
-                    .stdout(stdout)
-                    .stderr(stderr);
+            let ip = args.value_of("ip").unwrap();
+            let socket_addr = SocketAddr::new(ip.parse().unwrap(), hermod::consts::HERMOD_PORT);
+            let workers = args.value_of("workers").unwrap();
+            let workers = workers.parse::<u8>().unwrap();
 
-                match daemon.start() {
+            let server = Server::new(socket_addr, workers);
+
+            if daemonize {
+                match server.daemonize() {
                     Ok(_) => (),
                     Err(e) => {
                         error!("Error: Failed to daemonize server: ({}).\n Aborting...", e);
@@ -82,10 +77,8 @@ fn start_server(args: &clap::ArgMatches) {
                     .expect("Failed to set current working directory");
             }
 
-            let ip = args.value_of("ip").unwrap();
-            let socket_addr = SocketAddr::new(ip.parse().unwrap(), hermod::consts::HERMOD_PORT);
             info!("Starting server");
-            HermodServer::run_server(socket_addr);
+            server.start();
         }
     }
 }
@@ -113,7 +106,7 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 
     let cfg = cfg_builder.build_config();
 
-    hermod::client::HermodClient::new(cfg).execute();
+    hermod::client::Client::new(cfg).execute();
 }
 
 fn gen_key(args: &clap::ArgMatches) {

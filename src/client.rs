@@ -6,13 +6,13 @@ use crate::request::Request;
 
 use async_std::net::TcpStream;
 
-pub struct HermodClient<'hc> {
+pub struct Client<'hc> {
     config: ClientConfig<'hc>,
 }
 
-impl<'hc> HermodClient<'hc> {
+impl<'hc> Client<'hc> {
     pub fn new(config: ClientConfig<'hc>) -> Self {
-        HermodClient { config }
+        Client { config }
     }
 
     pub fn execute(&self) {

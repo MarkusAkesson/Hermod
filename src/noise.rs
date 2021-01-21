@@ -11,7 +11,7 @@ use snow::{
     Builder, HandshakeState, TransportState,
 };
 
-use log::info;
+use log::debug;
 
 use async_std::net::TcpStream;
 use async_std::prelude::*;
@@ -102,7 +102,7 @@ impl<'cfg> NoiseStream {
             self.noise.rekey_outgoing();
             self.stream.write_all(&[MessageType::Rekey as u8]).await?;
             self.bytes_sent = 0;
-            info!("Generating new session key");
+            debug!("Generating new session key");
         }
 
         let cipher_len = self
@@ -128,7 +128,7 @@ impl<'cfg> NoiseStream {
         } else if msg_type[0] == MessageType::Rekey as u8 {
             self.stream.read_exact(&mut msg_type).await?;
             self.noise.rekey_incoming();
-            info!("new key needed");
+            debug!("new key needed");
         }
         let mut length = [0u8; std::mem::size_of::<u16>()];
         self.stream.read_exact(&mut length).await?;

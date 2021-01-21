@@ -20,6 +20,8 @@ pub enum HermodError {
     Snow(#[from] snow::error::Error),
     #[error("{0}")]
     Channel(#[from] async_std::channel::SendError<crate::message::Message>),
+    #[error("{0}")]
+    DaemonError(#[from] daemonize::DaemonizeError),
     #[error("Unknown error")]
     Other,
 }

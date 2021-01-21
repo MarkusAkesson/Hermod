@@ -22,14 +22,38 @@ use async_std::task;
 
 use async_listen::{backpressure::Token, error_hint, ListenExt};
 
+use daemonize::Daemonize;
+
 use log::{debug, error, info, warn};
 
-pub struct HermodServer {}
+pub struct Server {
+    workers: u8,
+    socket_addr: SocketAddr,
+}
 
-impl<'hs> HermodServer {
-    pub fn run_server(ip: SocketAddr) {
+impl<'hs> Server {
+    pub fn new(ip: SocketAddr, workers: u8) -> Self {
+        Self {
+            workers,
+            socket_addr: ip,
+        }
+    }
+
+    pub fn daemonize(&self) -> Result<(), HermodError> {
+        let stdout = File::create("/tmp/hermod.out")?;
+        let stderr = File::create("/tmp/hermod.err")?;
+        let daemon = Daemonize::new()
+            .pid_file("/tmp/hermod.pid")
+            .working_directory(dirs::home_dir().expect("Could not find the home directory"))
+            .stdout(stdout)
+            .stderr(stderr);
+
+        daemon.start().map_err(|e| HermodError::DaemonError(e))
+    }
+
+    pub fn start(&self) {
         async_std::task::block_on(async {
-            let listener: TcpListener = TcpListener::bind(ip).await.unwrap();
+            let listener: TcpListener = TcpListener::bind(self.socket_addr).await.unwrap();
             info!("Listening on {}", listener.local_addr().unwrap());
 
             let mut incoming = listener

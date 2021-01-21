@@ -8,14 +8,17 @@ if [ "$1" = "server" ]; then
     exit
 fi
 
-HERMOD_SRC='/root/Hermod'
+HERMOD_SRC='/usr/src/test/Hermod'
 SRC_DIR="/sources"
 OUT_DIR="/output"
 
 REMOTE="bench"
-HOST_NAME=eoan
+HOST_NAME=hermod-server
 
 srcs=large.file,medium.file,small.file,src
+
+# Share key with server
+hermod share-key --host $HOST_NAME --name $REMOTE
 
 # Upload files
 hyperfine --parameter-list src ${srcs[@]} "hermod upload --source $SRC_DIR/{src} --remote $REMOTE --destination $OUT_DIR" --export-json /output/hermod.json
