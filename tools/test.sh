@@ -23,7 +23,7 @@ sleep 2
 
 # Start client
 echo "Starting client"
-docker run -it --name hermod-client --network test hermod-client
+docker run -it --name hermod-client --network test hermod-client ./run-test.sh
 
 function cleanup() {
     # Cleaning up
