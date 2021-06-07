@@ -63,7 +63,7 @@ impl From<u8> for MessageType {
             12 => MessageType::ShareIdentity,
             13 => MessageType::ShareHost,
             14 => MessageType::EndOfResponse,
-            15 => MessageType::EndOfResponse,
+            15 => MessageType::Rekey,
             _ => MessageType::Unknown,
         }
     }
