@@ -146,21 +146,18 @@ async fn client_handshake(
     stream: &mut TcpStream,
     hs: &mut HandshakeState,
     token: &[u8],
-) -> Result<(), snow::error::Error> {
+) -> Result<(), HermodError> {
     let mut packet = [0u8; PACKET_MAXLENGTH];
 
     packet[0] = MessageType::Init as u8;
     packet[1..ID_TOKEN_B64LEN as usize + 1].copy_from_slice(token);
 
     let _len = hs.write_message(&[], &mut packet[MSG_TYPE_LEN + ID_TOKEN_B64LEN as usize..])?;
-    stream
-        .write_all(&packet[..HERMOD_HS_INIT_LEN])
-        .await
-        .unwrap();
+    stream.write_all(&packet[..HERMOD_HS_INIT_LEN]).await?;
 
-    let mut read_buffer = vec![0u8; HERMOD_HS_RESP_LEN + MSG_TYPE_LEN];
-    let mut resp_buffer = vec![0u8; HERMOD_HS_RESP_LEN];
-    stream.read_exact(&mut read_buffer).await.unwrap();
+    let mut read_buffer = [0u8; HERMOD_HS_RESP_LEN + MSG_TYPE_LEN];
+    let mut resp_buffer = [0u8; HERMOD_HS_RESP_LEN];
+    stream.read_exact(&mut read_buffer).await?;
     hs.read_message(&read_buffer[MSG_TYPE_LEN..], &mut resp_buffer)?;
     Ok(())
 }
@@ -170,7 +167,7 @@ async fn server_handshake(
     hs: &mut HandshakeState,
     msg: &Message,
 ) -> Result<(), HermodError> {
-    let mut resp_buffer = vec![0u8; 48 + MSG_TYPE_LEN];
+    let mut resp_buffer = [0u8; 48 + MSG_TYPE_LEN];
 
     hs.read_message(&msg.get_payload()[ID_TOKEN_B64LEN as usize..], &mut [])?;
     let _len = hs.write_message(&[], &mut resp_buffer[MSG_TYPE_LEN..])?;
