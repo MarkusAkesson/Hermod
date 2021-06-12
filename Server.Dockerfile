@@ -4,6 +4,8 @@ WORKDIR /usr/src/Hermod
 COPY Cargo.toml .
 COPY src/ src/.
 
+RUN apt -y update
+RUN apt -y install clang
 RUN cargo install --path .
 RUN cargo install b3sum
 

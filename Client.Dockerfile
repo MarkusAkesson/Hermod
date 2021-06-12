@@ -1,5 +1,7 @@
 FROM rust:1.49 as builder
 
+RUN apt -y update
+RUN apt -y install clang
 RUN cargo install b3sum
 RUN cargo install hyperfine
 
