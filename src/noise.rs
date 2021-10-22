@@ -1,13 +1,12 @@
 use crate::config::Config;
 use crate::consts::*;
 use crate::error::HermodError;
-use crate::hacl::HaclResolver;
 use crate::message::{Message, MessageType};
 use crate::peer::Peer;
 
 use snow::{
     self,
-    resolvers::{DefaultResolver, FallbackResolver},
+    resolvers::{DefaultResolver, FallbackResolver, SodiumResolver},
     Builder, HandshakeState, TransportState,
 };
 
@@ -41,7 +40,7 @@ impl<'cfg> NoiseStream {
         let mut noise = Builder::with_resolver(
             NOISE_PATTERN.parse()?,
             Box::new(FallbackResolver::new(
-                Box::new(HaclResolver),
+                Box::new(SodiumResolver),
                 Box::new(DefaultResolver),
             )),
         )
@@ -68,7 +67,7 @@ impl<'cfg> NoiseStream {
         let mut noise = Builder::with_resolver(
             NOISE_PATTERN.parse()?,
             Box::new(FallbackResolver::new(
-                Box::new(HaclResolver),
+                Box::new(SodiumResolver),
                 Box::new(DefaultResolver),
             )),
         )
@@ -97,7 +96,6 @@ impl<'cfg> NoiseStream {
         let plaintext = msg.get_payload();
         let ciphertext_len = plaintext.len() + AEAD_TAG_LEN;
 
-        // Generate new encryption key after sending 1GB of data
         if self.bytes_sent + ciphertext_len > REKEY_THRESHOLD {
             self.noise.rekey_outgoing();
             self.stream.write_all(&[MessageType::Rekey as u8]).await?;

@@ -4,7 +4,6 @@ pub mod config;
 pub mod consts;
 pub mod error;
 pub mod genkey;
-pub mod hacl;
 pub mod host;
 pub mod identity;
 pub mod log;
