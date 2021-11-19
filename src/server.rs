@@ -1,9 +1,10 @@
+use crate::config::SERVER_CONFIG;
 use crate::consts::*;
 use crate::error::HermodError;
 use crate::genkey;
 use crate::identity;
 use crate::message::{Message, MessageType};
-use crate::peer::Endpoint;
+use crate::noise::NoiseSession;
 use crate::peer::Peer;
 use crate::request::Request;
 use crate::share_key;
@@ -160,11 +161,11 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
     )
     .await?;
 
-    let mut endpoint = Endpoint::server(stream, peer, &msg).await?;
+    let mut ns = NoiseSession::as_responder(peer, &*SERVER_CONFIG, stream, &msg).await?;
 
     // Request loop listen for and handle incomming requests
     loop {
-        let msg = match endpoint.recv().await {
+        let msg = match ns.recv().await {
             Ok(msg) => msg,
             Err(e) => {
                 error!("Connection error: {}", e);
@@ -179,7 +180,7 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
             }
             MessageType::Request => {
                 let request: Request = bincode::deserialize(msg.get_payload()).unwrap();
-                request.respond(&mut endpoint).await?
+                request.respond(&mut ns).await?
             }
             MessageType::Close => {
                 info!("Received 'close' from the client, closing connection");

@@ -1,6 +1,6 @@
 use crate::config::ClientConfig;
 use crate::message::{Message, MessageType};
-use crate::peer::Endpoint;
+use crate::noise::NoiseSession;
 use crate::peer::Peer;
 use crate::request::Request;
 
@@ -37,13 +37,13 @@ impl<'hc> Client<'hc> {
 
             // Conduct noise handshake
             // TODO: Better error message
-            let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
+            let mut session = NoiseSession::as_initiator(peer, &self.config, &mut stream)
                 .await
                 .expect("Failed to create a secure tunnel to the server");
             match Request::from(&self.config) {
                 Ok(requests) => {
                     // Execute the requests
-                    match Request::exec_all(&mut endpoint, &requests).await {
+                    match Request::exec_all(&mut session, &requests).await {
                         Ok(_) => (),
                         Err(e) => {
                             // Close connection on first error
@@ -55,7 +55,7 @@ impl<'hc> Client<'hc> {
                 Err(e) => log::error!("{}", e),
             };
 
-            if let Err(e) = endpoint.send(&Message::new(MessageType::Close, &[])).await {
+            if let Err(e) = session.send(&Message::new(MessageType::Close, &[])).await {
                 log::error!("{}", e);
             }
         });

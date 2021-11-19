@@ -15,25 +15,16 @@ use log::debug;
 use async_std::net::TcpStream;
 use async_std::prelude::*;
 
-pub enum NoiseRole {
-    Initiator,
-    Responder,
-}
-
-pub enum NoiseMode {
-    Handshake(snow::HandshakeState),
-    Transport(snow::TransportState),
-}
-
-pub struct NoiseStream {
+pub struct NoiseSession {
+    peer: Peer,
     stream: TcpStream,
     noise: TransportState,
     bytes_sent: usize,
 }
 
-impl<'cfg> NoiseStream {
-    pub async fn new_initiator<C: Config<'cfg>>(
-        peer: &Peer,
+impl<'cfg> NoiseSession {
+    pub async fn as_initiator<C: Config<'cfg>>(
+        peer: Peer,
         config: &C,
         stream: &mut TcpStream,
     ) -> Result<Self, HermodError> {
@@ -51,15 +42,16 @@ impl<'cfg> NoiseStream {
 
         let noise = noise.into_transport_mode()?;
 
-        Ok(NoiseStream {
+        Ok(Self {
+            peer,
             stream: stream.to_owned(),
             noise,
             bytes_sent: 0,
         })
     }
 
-    pub async fn new_responder<C: Config<'cfg>>(
-        peer: &Peer,
+    pub async fn as_responder<C: Config<'cfg>>(
+        peer: Peer,
         config: &C,
         stream: &mut TcpStream,
         message: &Message,
@@ -79,11 +71,16 @@ impl<'cfg> NoiseStream {
 
         let noise = noise.into_transport_mode()?;
 
-        Ok(NoiseStream {
+        Ok(Self {
+            peer,
             stream: stream.to_owned(),
             noise,
             bytes_sent: 0,
         })
+    }
+
+    pub fn get_peer(&self) -> &Peer {
+        &self.peer
     }
 
     pub fn get_stream(&self) -> &TcpStream {

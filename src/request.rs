@@ -2,7 +2,7 @@ use crate::config::ClientConfig;
 use crate::consts::*;
 use crate::error::HermodError;
 use crate::message::{Message, MessageType};
-use crate::peer::Endpoint;
+use crate::noise::NoiseSession;
 
 use std::fmt;
 use std::path::PathBuf;
@@ -218,75 +218,68 @@ impl Request {
         Ok(requests)
     }
 
-    pub async fn respond(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        info!(
-            "Received new request from {}: {}",
-            endpoint.get_peer(),
-            self
-        );
+    pub async fn respond(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
+        info!("Received new request from {}: {}", ns.get_peer(), self);
         let res = match self.method {
-            RequestMethod::Upload => self.download_server(endpoint).await,
-            RequestMethod::Download => self.upload_server(endpoint).await,
+            RequestMethod::Upload => self.download_server(ns).await,
+            RequestMethod::Download => self.upload_server(ns).await,
         };
-        info!("Responded to request from {}", endpoint.get_peer(),);
+        info!("Responded to request from {}", ns.get_peer(),);
         res
     }
 
-    pub async fn exec_all(
-        endpoint: &mut Endpoint,
-        requests: &[Request],
-    ) -> Result<(), HermodError> {
+    pub async fn exec_all(ns: &mut NoiseSession, requests: &[Request]) -> Result<(), HermodError> {
         for request in requests {
-            request.exec(endpoint).await?;
+            request.exec(ns).await?;
         }
 
         Ok(())
     }
 
-    async fn send_request(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn send_request(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
         let enc_req = bincode::serialize(&self).unwrap();
         let msg = Message::new(MessageType::Request, &enc_req);
-        endpoint.send(&msg).await
+        ns.send(&msg).await
     }
 
-    pub async fn exec(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        self.send_request(endpoint).await?;
+    pub async fn exec(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
+        self.send_request(ns).await?;
         match self.method {
-            RequestMethod::Upload => self.upload_client(endpoint).await,
-            RequestMethod::Download => self.download_client(endpoint).await,
+            RequestMethod::Upload => self.upload_client(ns).await,
+            RequestMethod::Download => self.download_client(ns).await,
         }
     }
 
-    async fn upload_server(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn upload_server(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
         let path = self.source.canonicalize()?;
         let (tx, rx) = async_std::channel::bounded(100);
 
         if path.as_path().is_dir() {
             let metadata = Metadata::from_path(&path).await?;
-            send_metadata(&metadata, endpoint).await?;
-            send_dir_content(async_std::path::PathBuf::from(path), endpoint).await?;
+            send_metadata(&metadata, ns).await?;
+            send_dir_content(async_std::path::PathBuf::from(path), ns).await?;
         } else {
             let file = File::open(&path).await?;
             let buf_reader = BufReader::new(file);
 
             let metadata = Metadata::from_path(&path).await?;
-            send_metadata(&metadata, endpoint).await?;
+            send_metadata(&metadata, ns).await?;
 
             // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
-            // messages to the endpoint/peer
+            // messages to the ns/peer
             async_std::task::spawn(
                 async move { read_file(buf_reader, tx, &metadata, false).await },
             );
 
             while let Ok(msg) = rx.recv().await {
-                endpoint.send(&msg).await?;
+                ns.send(&msg).await?;
             }
         }
 
         Ok(())
     }
 
-    async fn upload_client(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn upload_client(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
         let path = self.source.canonicalize()?;
         let file = File::open(&path).await?;
         let buf_reader = BufReader::new(file);
@@ -296,17 +289,17 @@ impl Request {
         let (tx, rx) = async_std::channel::bounded(100);
 
         // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
-        // messages to the endpoint/peer
+        // messages to the ns/peer
         async_std::task::spawn(async move { read_file(buf_reader, tx, &metadata, true).await });
 
         while let Ok(msg) = rx.recv().await {
-            endpoint.send(&msg).await?;
+            ns.send(&msg).await?;
         }
 
         Ok(())
     }
 
-    async fn download_server(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn download_server(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
         let mut path = async_std::path::PathBuf::from(&self.destination);
 
         if !path.exists().await {
@@ -325,7 +318,7 @@ impl Request {
 
         // Recv messages until an Error or Close message has been received
         loop {
-            let msg = endpoint.recv().await?;
+            let msg = ns.recv().await?;
             if msg.get_type() == MessageType::Error || msg.get_type() == MessageType::EOF {
                 tx.send(msg).await?;
                 break;
@@ -337,9 +330,9 @@ impl Request {
         Ok(())
     }
 
-    async fn download_client(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+    async fn download_client(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
         // Recv metadata about the file that is going to be transmitted
-        let msg = endpoint.recv().await?;
+        let msg = ns.recv().await?;
 
         if msg.get_type() == MessageType::Error {
             return Err(HermodError::Other);
@@ -353,20 +346,20 @@ impl Request {
                 "Retriveing information about the directory: {}.",
                 self.source.as_path().display()
             );
-            self.download_dir(endpoint, &metadata).await
+            self.download_dir(ns, &metadata).await
         } else {
-            self.download_file(endpoint, &metadata).await
+            self.download_file(ns, &metadata).await
         }
     }
 
     async fn download_dir(
         &self,
-        endpoint: &mut Endpoint,
+        ns: &mut NoiseSession,
         metadata: &Metadata,
     ) -> Result<(), HermodError> {
         let mut paths = PathList::new();
         loop {
-            let msg = endpoint.recv().await?;
+            let msg = ns.recv().await?;
             if msg.get_type() == MessageType::EOF {
                 break;
             } else if msg.get_type() == MessageType::Error {
@@ -397,17 +390,17 @@ impl Request {
             destination.push(dir_diff);
             let request = Request::file(&path, destination.to_str().unwrap(), self.method)
                 .unwrap_or_else(|_| panic!("Failed to create request for {}", path));
-            request.get_file(endpoint).await?;
+            request.get_file(ns).await?;
         }
 
         Ok(())
     }
 
-    async fn get_file(&self, endpoint: &mut Endpoint) -> Result<(), HermodError> {
-        self.send_request(endpoint).await?;
+    async fn get_file(&self, ns: &mut NoiseSession) -> Result<(), HermodError> {
+        self.send_request(ns).await?;
 
         // Recv metadata about the file that is going to be transmitted
-        let msg = endpoint.recv().await?;
+        let msg = ns.recv().await?;
 
         if msg.get_type() == MessageType::Error {
             return Err(HermodError::Other);
@@ -419,12 +412,12 @@ impl Request {
             return Err(HermodError::IsDir);
         }
 
-        self.download_file(endpoint, &metadata).await
+        self.download_file(ns, &metadata).await
     }
 
     async fn download_file(
         &self,
-        endpoint: &mut Endpoint,
+        ns: &mut NoiseSession,
         metadata: &Metadata,
     ) -> Result<(), HermodError> {
         let mut path = async_std::path::PathBuf::from(&self.destination);
@@ -448,7 +441,7 @@ impl Request {
         // Recv messages until an Error or Close message has been received
         let mut received = 0u64;
         loop {
-            let msg = endpoint.recv().await?;
+            let msg = ns.recv().await?;
             if msg.get_type() == MessageType::Error {
                 error!("Failed to download {}", &metadata.file_path);
                 pb.finish_with_message(
@@ -589,16 +582,16 @@ async fn write_file(mut writer: BufWriter<File>, rx: Receiver<Message>, path: &P
     }
 }
 
-async fn send_metadata(metadata: &Metadata, endpoint: &mut Endpoint) -> Result<(), HermodError> {
+async fn send_metadata(metadata: &Metadata, ns: &mut NoiseSession) -> Result<(), HermodError> {
     let enc_metadata = bincode::serialize(&metadata).unwrap();
     let msg = Message::new(MessageType::Metadata, &enc_metadata);
-    endpoint.send(&msg).await?;
+    ns.send(&msg).await?;
     Ok(())
 }
 
 async fn send_dir_content(
     path: async_std::path::PathBuf,
-    endpoint: &mut Endpoint,
+    ns: &mut NoiseSession,
 ) -> Result<(), HermodError> {
     let paths = read_dir(path)
         .filter_map(|p| async { p.ok() })
@@ -613,27 +606,25 @@ async fn send_dir_content(
             len += path.len();
             payload.push(path);
         } else {
-            endpoint
-                .send(&Message::new(
-                    MessageType::Payload,
-                    &bincode::serialize(&payload).unwrap(),
-                ))
-                .await?;
+            ns.send(&Message::new(
+                MessageType::Payload,
+                &bincode::serialize(&payload).unwrap(),
+            ))
+            .await?;
             payload.clear();
             len = path.len();
             payload.push(path);
         }
     }
 
-    endpoint
-        .send(&Message::new(
-            MessageType::Payload,
-            &bincode::serialize(&payload).unwrap(),
-        ))
-        .await?;
+    ns.send(&Message::new(
+        MessageType::Payload,
+        &bincode::serialize(&payload).unwrap(),
+    ))
+    .await?;
 
     // Send EOF to peer
-    endpoint.send(&Message::new(MessageType::EOF, &[])).await?;
+    ns.send(&Message::new(MessageType::EOF, &[])).await?;
     Ok(())
 }
 
