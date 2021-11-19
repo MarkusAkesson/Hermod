@@ -50,7 +50,7 @@ pub fn share_key(host: Host) {
     async_std::task::block_on(async move {
         let socket_addr = (host.hostname(), HERMOD_PORT);
 
-        println!("Connecting to {:?}", socket_addr);
+        log::info!("Connecting to {:?}", socket_addr);
 
         let server_key = match TcpStream::connect(socket_addr)
             .err_into::<HermodError>()
@@ -62,7 +62,7 @@ pub fn share_key(host: Host) {
                 .expect("Failed to read the remotes public static key")
                 .to_vec(),
             Err(e) => {
-                eprintln!("Failed to share key with the server: {}", e);
+                log::error!("Failed to share key with the server: {}", e);
                 return;
             }
         };
@@ -76,8 +76,8 @@ pub fn share_key(host: Host) {
             .map_err(|err| HermodError::IoError(err));
 
         match res {
-            Ok(_) => println!("Succesfully shared keys with the remote"),
-            Err(e) => eprintln!("Failed to write configuration to file: {}", e),
+            Ok(_) => log::info!("Succesfully shared keys with the remote"),
+            Err(e) => log::error!("Failed to write configuration to file: {}", e),
         }
     });
 }

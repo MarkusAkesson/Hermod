@@ -349,7 +349,7 @@ impl Request {
 
         if metadata.dir {
             // download dir
-            println!(
+            log::info!(
                 "Retriveing information about the directory: {}.",
                 self.source.as_path().display()
             );
@@ -375,7 +375,7 @@ impl Request {
             paths.append(&mut bincode::deserialize::<Vec<String>>(msg.get_payload()).unwrap());
         }
 
-        println!(
+        log::info!(
             "About to retrive {} files from {:#?}",
             paths.len(),
             self.source
@@ -396,13 +396,7 @@ impl Request {
             dir_diff.pop();
             destination.push(dir_diff);
             let request = Request::file(&path, destination.to_str().unwrap(), self.method)
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "Failed to create request for
-{}",
-                        path
-                    )
-                });
+                .unwrap_or_else(|_| panic!("Failed to create request for {}", path));
             request.get_file(endpoint).await?;
         }
 

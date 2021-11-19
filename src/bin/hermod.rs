@@ -1,6 +1,7 @@
 use hermod::cli;
 use hermod::config::ClientConfigBuilder;
 use hermod::consts::*;
+use hermod::log::LogBuilder;
 use hermod::request::RequestMethod;
 use hermod::server::Server;
 
@@ -38,7 +39,11 @@ fn start_server(args: &clap::ArgMatches) {
         std::fs::create_dir(base_dir).expect("Failed to create Hermods base directory");
     }
 
-    match hermod::log::setup_logger(!daemonize, verbosity) {
+    match LogBuilder::with_verbosity(verbosity as u8)
+        .set_stdout(!daemonize)
+        .set_file(true)
+        .init_logger()
+    {
         Ok(()) => (),
         Err(e) => {
             eprintln!("Failed to initate logging, aborting. ({})", e);
@@ -84,10 +89,23 @@ fn start_server(args: &clap::ArgMatches) {
 }
 
 fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
+    let verbosity = args.occurrences_of("verbosity");
+
+    match LogBuilder::with_verbosity(verbosity as u8)
+        .set_stdout(true)
+        .init_logger()
+    {
+        Ok(()) => (),
+        Err(e) => {
+            eprintln!("Failed to initate logging, aborting. ({})", e);
+            return;
+        }
+    }
+
     let host = match hermod::host::load_host(args.value_of("remote").unwrap()) {
         Ok(host) => host,
         Err(err) => {
-            eprintln!("Unknown remote host: {}", err);
+            log::error!("Unknown remote host: {}", err);
             return;
         }
     };
@@ -110,18 +128,31 @@ fn exec_request(args: &clap::ArgMatches, method: RequestMethod) {
 }
 
 fn gen_key(args: &clap::ArgMatches) {
+    let verbosity = args.occurrences_of("verbosity");
+
+    match LogBuilder::with_verbosity(verbosity as u8)
+        .set_stdout(true)
+        .init_logger()
+    {
+        Ok(()) => (),
+        Err(e) => {
+            eprintln!("Failed to initate logging, aborting. ({})", e);
+            return;
+        }
+    }
+
     let alias = args.value_of("alias").expect("No alias provided, aborting");
     let force = args.is_present("force");
     let exists = hermod::host::exists(&alias);
 
     if exists && !force {
-        eprintln!("Found an existing host with that alias, to overwrite pass --force");
+        log::error!("Found an existing host with that alias, to overwrite pass --force");
         return;
     } else if exists && force {
-        println!("Found an existing host with that alias, overwriting");
+        log::warn!("Found an existing host with that alias, overwriting");
     }
 
-    println!("Generating a new static keypair and a new identification token");
+    log::info!("Generating a new static keypair and a new identification token");
 
     let keys = hermod::genkey::gen_keys().expect("Failed to generate static keys");
     let private_key = keys.private;
@@ -133,25 +164,36 @@ fn gen_key(args: &clap::ArgMatches) {
         .set_public_key(&public_key)
         .set_private_key(&private_key);
 
-    println!("{}", host);
-
     host.write_to_file()
         .expect("Failed to write generated key to file");
 }
 
 fn share_key(args: &clap::ArgMatches) {
+    let verbosity = args.occurrences_of("verbosity");
+
+    match LogBuilder::with_verbosity(verbosity as u8)
+        .set_stdout(true)
+        .init_logger()
+    {
+        Ok(()) => (),
+        Err(e) => {
+            eprintln!("Failed to initate logging, aborting. ({})", e);
+            return;
+        }
+    }
+
     let name = args.value_of("name").expect("No name provided, aborting");
     let force = args.is_present("force");
     let exists = hermod::host::exists(&name);
 
     if exists && !force {
-        eprintln!("Found an existing host with that alias, to overwrite pass --force");
+        log::error!("Found an existing host with that alias, to overwrite pass --force");
         return;
     } else if exists && force {
-        println!("Found an existing host with that alias, overwriting");
+        log::warn!("Found an existing host with that alias, overwriting");
     }
 
-    println!(
+    log::info!(
         "Generating and sharing a new key pair with the remote: {}",
         &name
     );

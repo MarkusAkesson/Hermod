@@ -101,7 +101,7 @@ pub fn print_known_clients() {
         let num_clients = KNOWN_CLIENTS.lock().await.len();
 
         if num_clients == 0 {
-            println!("No known clients found.");
+            log::warn!("No known clients found.");
             return;
         }
 

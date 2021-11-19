@@ -20,25 +20,26 @@ impl<'hc> Client<'hc> {
             let mut stream = match TcpStream::connect(self.config.get_hostname()).await {
                 Ok(stream) => stream,
                 Err(e) => {
-                    eprintln!("Failed to connect to server: {}", e);
+                    log::error!("Failed to connect to server: {}", e);
                     return;
                 }
             };
             let peer = match Peer::new_server_peer(self.config.get_alias()).await {
                 Ok(peer) => peer,
                 Err(_) => {
-                    eprintln!(
+                    log::error!(
                         "Cound not find a server with that alias ({}). Aborting...",
                         self.config.get_alias()
                     );
                     return;
                 }
             };
+
             // Conduct noise handshake
             // TODO: Better error message
             let mut endpoint = Endpoint::client(&mut stream, peer, &self.config)
                 .await
-                .unwrap();
+                .expect("Failed to create a secure tunnel to the server");
             match Request::from(&self.config) {
                 Ok(requests) => {
                     // Execute the requests
@@ -47,15 +48,15 @@ impl<'hc> Client<'hc> {
                         Err(e) => {
                             // Close connection on first error
                             // Try to send the other requests on error?
-                            eprintln!("Failed to execute the request: {}", e);
+                            log::error!("Failed to execute the request: {}", e);
                         }
                     }
                 }
-                Err(e) => eprintln!("{}", e),
+                Err(e) => log::error!("{}", e),
             };
 
             if let Err(e) = endpoint.send(&Message::new(MessageType::Close, &[])).await {
-                eprintln!("{}", e);
+                log::error!("{}", e);
             }
         });
     }
