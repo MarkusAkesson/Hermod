@@ -14,11 +14,11 @@ fn main() {
     let args = cli::get_matches();
 
     match args.subcommand() {
-        ("server", Some(server_args)) => start_server(&server_args),
-        ("upload", Some(req_args)) => exec_request(&req_args, RequestMethod::Upload),
-        ("download", Some(req_args)) => exec_request(&req_args, RequestMethod::Download),
-        ("gen-key", Some(gen_args)) => gen_key(&gen_args),
-        ("share-key", Some(sk_args)) => share_key(&sk_args),
+        ("server", Some(server_args)) => start_server(server_args),
+        ("upload", Some(req_args)) => exec_request(req_args, RequestMethod::Upload),
+        ("download", Some(req_args)) => exec_request(req_args, RequestMethod::Download),
+        ("gen-key", Some(gen_args)) => gen_key(gen_args),
+        ("share-key", Some(sk_args)) => share_key(sk_args),
         _ => {}
     }
 }
@@ -143,7 +143,7 @@ fn gen_key(args: &clap::ArgMatches) {
 
     let alias = args.value_of("alias").expect("No alias provided, aborting");
     let force = args.is_present("force");
-    let exists = hermod::host::exists(&alias);
+    let exists = hermod::host::exists(alias);
 
     if exists && !force {
         log::error!("Found an existing host with that alias, to overwrite pass --force");
@@ -159,7 +159,7 @@ fn gen_key(args: &clap::ArgMatches) {
     let public_key = keys.public;
     let id_token = hermod::genkey::gen_idtoken();
 
-    let host = hermod::host::Host::with_alias(&alias)
+    let host = hermod::host::Host::with_alias(alias)
         .set_id_token(&id_token)
         .set_public_key(&public_key)
         .set_private_key(&private_key);
@@ -184,7 +184,7 @@ fn share_key(args: &clap::ArgMatches) {
 
     let name = args.value_of("name").expect("No name provided, aborting");
     let force = args.is_present("force");
-    let exists = hermod::host::exists(&name);
+    let exists = hermod::host::exists(name);
 
     if exists && !force {
         log::error!("Found an existing host with that alias, to overwrite pass --force");
@@ -201,6 +201,6 @@ fn share_key(args: &clap::ArgMatches) {
     let host = args
         .value_of("host")
         .expect("No host address provided, aborting");
-    let host = hermod::host::Host::with_alias(&name).set_hostname(host);
+    let host = hermod::host::Host::with_alias(name).set_hostname(host);
     hermod::share_key::share_key(host);
 }

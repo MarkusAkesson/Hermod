@@ -71,10 +71,10 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    pub async fn from_path(path: &PathBuf) -> Result<Self, HermodError> {
+    pub async fn from_path(path: &Path) -> Result<Self, HermodError> {
         let metadata = async_std::fs::metadata(&path).await?;
 
-        let file_path = String::from(path.canonicalize().unwrap().to_str().unwrap());
+        let file_path = String::from(path.canonicalize().await.unwrap().to_str().unwrap());
         let len = metadata.len();
         let dir = metadata.is_dir();
 
@@ -160,7 +160,7 @@ impl Request {
         let source = PathBuf::from(source);
 
         if method == RequestMethod::Upload {
-            source.canonicalize().map_err(|e| HermodError::IoError(e))?;
+            source.canonicalize().map_err(HermodError::IoError)?;
         }
 
         Ok(Request {
@@ -255,14 +255,16 @@ impl Request {
         let (tx, rx) = async_std::channel::bounded(100);
 
         if path.as_path().is_dir() {
-            let metadata = Metadata::from_path(&path).await?;
+            let async_pathbuf: async_std::path::PathBuf = path.into();
+            let metadata = Metadata::from_path(async_pathbuf.as_path()).await?;
             send_metadata(&metadata, ns).await?;
-            send_dir_content(async_std::path::PathBuf::from(path), ns).await?;
+            send_dir_content(async_pathbuf, ns).await?;
         } else {
             let file = File::open(&path).await?;
             let buf_reader = BufReader::new(file);
 
-            let metadata = Metadata::from_path(&path).await?;
+            let async_pathbuf: async_std::path::PathBuf = path.into();
+            let metadata = Metadata::from_path(async_pathbuf.as_path()).await?;
             send_metadata(&metadata, ns).await?;
 
             // Spawns a task that reads a file and sends it to a receiver, responisble for sending the
@@ -284,7 +286,8 @@ impl Request {
         let file = File::open(&path).await?;
         let buf_reader = BufReader::new(file);
 
-        let metadata = Metadata::from_path(&path).await?;
+        let async_pathbuf: async_std::path::PathBuf = path.into();
+        let metadata = Metadata::from_path(async_pathbuf.as_path()).await?;
 
         let (tx, rx) = async_std::channel::bounded(100);
 
@@ -433,7 +436,7 @@ impl Request {
 
         let (tx, rx): (Sender<Message>, Receiver<Message>) = async_std::channel::bounded(100);
 
-        let pb = create_progress_bar(&metadata, "Downloading");
+        let pb = create_progress_bar(metadata, "Downloading");
 
         // Spawn a task that write the incoming payload to disk
         async_std::task::spawn(async move { write_file(buf_writer, rx, path.as_path()).await });
@@ -604,7 +607,6 @@ async fn send_dir_content(
     for path in paths {
         if len + path.len() < PACKET_MAXLENGTH {
             len += path.len();
-            payload.push(path);
         } else {
             ns.send(&Message::new(
                 MessageType::Payload,
@@ -613,8 +615,8 @@ async fn send_dir_content(
             .await?;
             payload.clear();
             len = path.len();
-            payload.push(path);
         }
+        payload.push(path);
     }
 
     ns.send(&Message::new(

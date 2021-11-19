@@ -18,7 +18,7 @@ pub trait Config<'cfg>: Send + Sync {
     fn get_public_key(&self) -> &[u8];
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ServerConfig {
     public_key: Vec<u8>,
     private_key: Vec<u8>,
@@ -50,11 +50,11 @@ impl Config<'_> for ServerConfig {
 
 impl<'builder> Config<'builder> for ClientConfig<'builder> {
     fn get_private_key(&self) -> &[u8] {
-        &self.host.private_key()
+        self.host.private_key()
     }
 
     fn get_public_key(&self) -> &[u8] {
-        &self.host.public_key()
+        self.host.public_key()
     }
 }
 
@@ -139,10 +139,10 @@ impl<'builder> ClientConfig<'builder> {
     }
 
     pub fn get_hostname(&self) -> &str {
-        &self.host.hostname()
+        self.host.hostname()
     }
 
     pub fn get_alias(&self) -> &str {
-        &self.host.alias()
+        self.host.alias()
     }
 }

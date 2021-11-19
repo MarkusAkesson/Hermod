@@ -49,7 +49,7 @@ impl<'hs> Server {
             .stdout(stdout)
             .stderr(stderr);
 
-        daemon.start().map_err(|e| HermodError::DaemonError(e))
+        daemon.start().map_err(HermodError::DaemonError)
     }
 
     pub fn start(&self) {
@@ -60,7 +60,7 @@ impl<'hs> Server {
             let mut incoming = listener
                 .incoming()
                 .log_warnings(|e| {
-                    warn!("Accept error: {}. Sleeping 0.5s. {}", e, error_hint(&e));
+                    warn!("Accept error: {}. Sleeping 0.5s. {}", e, error_hint(e));
                 })
                 .handle_errors(Duration::from_millis(500))
                 .backpressure(100);
@@ -68,10 +68,9 @@ impl<'hs> Server {
             while let Some((token, mut stream)) = incoming.next().await {
                 task::spawn(async move {
                     match handle_connection(&token, &mut stream).await {
-                        Ok(_) => return,
+                        Ok(_) => {}
                         Err(e) => {
                             error!("{}", e);
-                            return;
                         }
                     }
                 });
@@ -156,7 +155,7 @@ async fn incomming_request(stream: &mut TcpStream) -> Result<(), HermodError> {
     let msg = Message::new(MessageType::Init, &buffer);
     // 12 = tokenid base64len
     let peer = Peer::new_client_peer(
-        &str::from_utf8(&msg.get_payload()[0..12])
+        str::from_utf8(&msg.get_payload()[0..12])
             .expect("Failed to read client id from Init message"),
     )
     .await?;

@@ -73,7 +73,7 @@ pub fn share_key(host: Host) {
             .set_private_key(&keys.private)
             .set_public_key(&keys.public)
             .write_to_file()
-            .map_err(|err| HermodError::IoError(err));
+            .map_err(HermodError::IoError);
 
         match res {
             Ok(_) => log::info!("Succesfully shared keys with the remote"),
