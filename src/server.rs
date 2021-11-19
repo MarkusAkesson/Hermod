@@ -28,16 +28,12 @@ use daemonize::Daemonize;
 use log::{debug, error, info, warn};
 
 pub struct Server {
-    workers: u8,
     socket_addr: SocketAddr,
 }
 
 impl<'hs> Server {
-    pub fn new(ip: SocketAddr, workers: u8) -> Self {
-        Self {
-            workers,
-            socket_addr: ip,
-        }
+    pub fn new(ip: SocketAddr) -> Self {
+        Self { socket_addr: ip }
     }
 
     pub fn daemonize(&self) -> Result<(), HermodError> {

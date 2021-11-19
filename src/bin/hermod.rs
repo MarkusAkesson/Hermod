@@ -64,10 +64,7 @@ fn start_server(args: &clap::ArgMatches) {
         _ => {
             let ip = args.value_of("ip").unwrap();
             let socket_addr = SocketAddr::new(ip.parse().unwrap(), hermod::consts::HERMOD_PORT);
-            let workers = args.value_of("workers").unwrap();
-            let workers = workers.parse::<u8>().unwrap();
-
-            let server = Server::new(socket_addr, workers);
+            let server = Server::new(socket_addr);
 
             if daemonize {
                 match server.daemonize() {
